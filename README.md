@@ -5,7 +5,7 @@ LitLog is a desktop web application that helps users manage their entire
 reading journey in one place. Users can add books, organize them across 
 four shelves (Currently Reading, Want to Read, Finished, Did Not Finish), 
 write personal notes, set reading goals, track progress, and receive 
-book recommendations — all stored in a local SQL Server database.
+book recommendations all stored in a local SQL Server database.
 
 ## Team Members
 - Khadija Faiz 24L-2554 :Scrum Master
@@ -42,7 +42,59 @@ litlog/
 ### Backend
 ```
 cd backend
-[add your setup steps here]
+## How to Run
+
+### Prerequisites
+Make sure you have these installed before starting:
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+---
+### 1. Database (Docker)
+
+Start Docker Desktop, then run:
+
+docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourPassword123!" \
+  -p 1433:1433 --name litlog-sql \
+  -d mcr.microsoft.com/mssql/server:2022-latest
+
+Wait 30 seconds for SQL Server to start, then create the database and run the schema
+---
+
+### 2. Backend
+
+cd backend
+npm install
+
+Create a .env file inside the backend/ folder (use .env.example as a template):
+DB_USER=sa
+DB_PASSWORD=YourPassword123!
+DB_SERVER=localhost
+DB_NAME=LitLog
+PORT=5001
+```
+
+Start the server:
+
+node server.js
+
+You should see:
+
+Server running on http://localhost:5001
+Connected to SQL Server
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /auth/register | Register a new user |
+| POST | /auth/login | Login |
+| POST | /books | Add a book |
+| GET | /books/:userID | Get all books for a user |
+| PUT | /books/:id | Update a book |
+| DELETE | /books/:id | Delete a book |
+| GET | /books/search?q=...&userID=... | Search books |
+| GET | /books/filter?genre=...&userID=... | Filter by genre |
+| GET | /books/filter?status=...&userID=... | Filter by status |
 ```
 
 ### Frontend
@@ -61,6 +113,6 @@ DB_PASSWORD=your_password
 ```
 
 ## Current Sprint
-Sprint 1 — Iteration 1 (March 8 – March 22, 2025)
+Sprint 1 — Iteration 1 (March 8 – March 22, 2026)
 - Module 1: User Authentication & Book Entry
 - Module 2: Bookshelf & Search
