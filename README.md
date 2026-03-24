@@ -13,8 +13,8 @@ book recommendations all stored in a local SQL Server database.
 - Romaisa Sajjad 24L-2608 :Frontend Developer
 
 ## Tech Stack
-- Frontend: HTML / CSS / JavaScript
-- Backend: C# / ASP.NET
+- Frontend: React
+- Backend: Node.js, Express.js
 - Database: SQL Server
 
 ## Project Structure
