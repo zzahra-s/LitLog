@@ -82,19 +82,7 @@ You should see:
 Server running on http://localhost:5001
 Connected to SQL Server
 
-### API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /auth/register | Register a new user |
-| POST | /auth/login | Login |
-| POST | /books | Add a book |
-| GET | /books/:userID | Get all books for a user |
-| PUT | /books/:id | Update a book |
-| DELETE | /books/:id | Delete a book |
-| GET | /books/search?q=...&userID=... | Search books |
-| GET | /books/filter?genre=...&userID=... | Filter by genre |
-| GET | /books/filter?status=...&userID=... | Filter by status |
+For full API documentation see [docs/api-docs.md](docs/api-docs.md)
 ```
 
 ### Frontend
