@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBooks, deleteBook, addBook } from '../services/api';
-import { searchExternalBooks } from '../services/externalapi';
+import { searchExternalBooks } from '../services/externalapi';//external api being used
 
 function Library() {
   const navigate = useNavigate();
 
-  const [books, setBooks] = useState([]);
-  const [search, setSearch] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [books, setBooks] = useState([]);//list of user books starts emoty
+  const [search, setSearch] = useState('');//text typed in search bar
+  const [showFilters, setShowFilters] = useState(false);//whether filter panel is visible
   const [filterGenre, setFilterGenre] = useState('');
   const [filterShelf, setFilterShelf] = useState('');
-  const [filterRating, setFilterRating] = useState('');
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const [externalResults, setExternalResults] = useState([]);
-  const [externalQuery, setExternalQuery] = useState('');
+  const [filterRating, setFilterRating] = useState('');//store selected filters
+
+  const [openDropdown, setOpenDropdown] = useState(null);//which book's dropdown is open
+  const [externalResults, setExternalResults] = useState([]);//books from Google API
+  const [externalQuery, setExternalQuery] = useState('');//search text for external API
 
   // --- STYLE OBJECTS ---
   const pageStyle = { display: 'flex', minHeight: '100vh', fontFamily: 'Arial' };
@@ -34,83 +35,100 @@ function Library() {
 
   // --- FETCH USER BOOKS ---
   useEffect(() => {
-    const userID = Number(localStorage.getItem('userID'));
-    if (!userID || isNaN(userID)) {
-      alert('User not logged in!');
-      navigate('/login');
+    const userID = Number(localStorage.getItem('userID'));//get userID from browser storage and convert to number
+    if (!userID || isNaN(userID)) { //if no userID or invalid
+      alert('User not logged in!');//display error
+      navigate('/login');//return to login page
       return;
     }
 
-    getBooks(userID).then(data => {
+    getBooks(userID).then(data => {//fetch books from backend
       // sanitize missing title/author
       const sanitized = data.map(b => ({
+//loop through books,loop through books
+//fix missing data:if no title → "Untitled",if no author → "Unknown"
         ...b,
         title: b.title || 'Untitled',
         author: b.author || 'Unknown',
       }));
-      setBooks(sanitized);
+      setBooks(sanitized);//save books in state
     });
   }, [navigate]);
 
   // --- DERIVED FILTER OPTIONS ---
   const genreOptions = [...new Set(books.map(b => b.genre).filter(Boolean))].sort();
-  const activeFilterCount = [filterGenre, filterShelf, filterRating].filter(Boolean).length;
+//books.map(...) → get all genres
+//filter(Boolean) → remove empty ones
+//.new Set(...) → remove duplicates
+//[... ] → convert back to array
+//.sort() → sort alphabetically
+//result = list of unique genres
+
+ const activeFilterCount = [filterGenre, filterShelf, filterRating].filter(Boolean).length;
+ //count how many filters are active
 
   // --- FILTER LOCAL BOOKS SAFELY ---
-  const filteredBooks = books.filter(book => {
+  const filteredBooks = books.filter(book => {//go through each book
     const matchesSearch =
-      (book.title?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (book.title?.toLowerCase() || '').includes(search.toLowerCase()) ||//convert title to lowercase,check if it contains search text
       (book.author?.toLowerCase() || '').includes(search.toLowerCase());
     const matchesGenre = !filterGenre || (book.genre?.toLowerCase() === filterGenre.toLowerCase());
+    //if no filter → allow all,else → match genre
+
     const matchesShelf = !filterShelf || book.status === filterShelf;
+    //shelf match
+
     const matchesRating = !filterRating || Number(book.rating) >= Number(filterRating);
+    //rating match
+
     return matchesSearch && matchesGenre && matchesShelf && matchesRating;
+    //final res,book must satisfy ALL conditions
   });
 
   // --- DELETE BOOK ---
   async function handleDelete(id) {
-    if (window.confirm('Are you sure you want to delete this book?')) {
-      await deleteBook(id);
-      setBooks(books.filter(book => book.id !== id));
+    if (window.confirm('Are you sure you want to delete this book?')) {//ask user for confirmation
+      await deleteBook(id);//delete from backend
+      setBooks(books.filter(book => book.id !== id));//remove from UI
     }
   }
 
   // --- MOVE BOOK SHELF ---
   function handleMoveShelf(id, newStatus) {
-    setBooks(books.map(book =>
+    setBooks(books.map(book =>//update only the selected book
       book.id === id ? { ...book, status: newStatus } : book
     ));
-    setOpenDropdown(null);
+    setOpenDropdown(null);//close dropdown
   }
 
   // --- EXTERNAL SEARCH ---
-  async function handleExternalSearch(e) {
-    const query = e.target.value;
-    setExternalQuery(query);
+  async function handleExternalSearch(e) {//runs when user types
+    const query = e.target.value;//get typed text
+    setExternalQuery(query);//get typed text
 
-    if (query.length > 2) {
-      const results = await searchExternalBooks(query);
-      setExternalResults(results);
+    if (query.length > 2) {//only search if more than 2 letters
+      const results = await searchExternalBooks(query);//
+      setExternalResults(results);//store results
     } else {
-      setExternalResults([]);
+      setExternalResults([]);//clear results
     }
   }
 
   // --- ADD EXTERNAL BOOK ---
-  async function handleAddExternalBook(book) {
-    const userID = Number(localStorage.getItem('userID'));
-    if (!userID || isNaN(userID)) {
+  async function handleAddExternalBook(book) {//add book from Google
+    const userID = Number(localStorage.getItem('userID'));//get userID
+    if (!userID || isNaN(userID)) {//check login
       alert('User not logged in');
       return;
     }
 
-    const title = book.title?.trim();
-    if (!title) {
+    const title = book.title?.trim();//get title and remove spaces
+    if (!title) {//stop if no title
       alert('Cannot add a book without a title');
       return;
     }
 
-    const sanitizedBook = {
+    const sanitizedBook = {//clean the data
       ...book,
       totalPages: Number(book.totalPages) || 0,
       yearPublished: Number(book.yearPublished) || null,
@@ -118,9 +136,9 @@ function Library() {
     };
 
     try {
-      await addBook({ ...sanitizedBook, userID });
+      await addBook({ ...sanitizedBook, userID });//send to backend
       alert('Book added!');
-      getBooks(userID).then(data => {
+      getBooks(userID).then(data => {//refresh books
         const sanitized = data.map(b => ({ ...b, title: b.title || 'Untitled', author: b.author || 'Unknown' }));
         setBooks(sanitized);
       });
@@ -288,7 +306,8 @@ function Library() {
                     </button>
                     {openDropdown === book.id && (
                       <div style={dropdownStyle}>
-                        <div style={dropdownItemStyle} onClick={() => navigate(`/bookdetails/${book.id}`)}>Edit Details</div>
+                        {/* ✅ passes full book object as route state so BookDetails can pre-fill the form */}
+                        <div style={dropdownItemStyle} onClick={() => navigate(`/bookdetails/${book.id}`, { state: { book } })}>Edit Details</div>
                         <div style={dropdownItemStyle} onClick={() => handleDelete(book.id)}>Delete</div>
                         <div style={{ padding: '8px 15px', fontSize: '12px', color: '#888' }}>Move to shelf:</div>
                         {['Currently Reading', 'Want to Read', 'Finished', 'Did Not Finish'].map(shelf => (
