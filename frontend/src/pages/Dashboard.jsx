@@ -1,235 +1,432 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getBooks } from '../services/api';
+
+const BASE_URL = 'http://localhost:5001';
+
+async function fetchProgress(bookID) {
+  try {
+    const res = await fetch(`${BASE_URL}/progress/${bookID}`);
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.PagesRead || 0;
+  } catch { return 0; }
+}
+
+async function fetchGoals(userID) {
+  try {
+    const res = await fetch(`${BASE_URL}/goals/${userID}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
+}
+
+async function fetchCover(title, author) {
+  try {
+    const q = encodeURIComponent(`${title} ${author || ''}`);
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1`);
+    const data = await res.json();
+    const thumb = data.items?.[0]?.volumeInfo?.imageLinks?.thumbnail;
+    return thumb || null;
+  } catch { return null; }
+}
+
+function PieChart({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#aaa', fontSize: '13px' }}>
+        No genre data
+      </div>
+    );
+  }
+
+  const COLORS = ['#7c3aed', '#a78bfa', '#4f46e5', '#818cf8', '#c4b5fd', '#6366f1', '#ddd6fe'];
+  const total = data.reduce((s, d) => s + d.count, 0);
+
+  let cumulativeAngle = -Math.PI / 2;
+  const slices = data.map((d, i) => {
+    const angle = (d.count / total) * 2 * Math.PI;
+    const startAngle = cumulativeAngle;
+    cumulativeAngle += angle;
+    const endAngle = cumulativeAngle;
+
+    const x1 = 70 + 60 * Math.cos(startAngle);
+    const y1 = 70 + 60 * Math.sin(startAngle);
+    const x2 = 70 + 60 * Math.cos(endAngle);
+    const y2 = 70 + 60 * Math.sin(endAngle);
+    const largeArc = angle > Math.PI ? 1 : 0;
+
+    const path = `M 70 70 L ${x1} ${y1} A 60 60 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+    return { path, color: COLORS[i % COLORS.length], label: d.genre, count: d.count };
+  });
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        {slices.map((s, i) => (
+          <path key={i} d={s.path} fill={s.color} stroke="white" strokeWidth="2" />
+        ))}
+        <circle cx="70" cy="70" r="28" fill="white" />
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        {slices.map((s, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#444' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: s.color, flexShrink: 0 }} />
+            <span style={{ fontWeight: '600' }}>{s.label}</span>
+            <span style={{ color: '#888' }}>({Math.round((s.count / total) * 100)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Profile Dropdown ──────────────────────────────────────────────────────────
+function ProfileMenu({ username, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Close when clicking outside
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Avatar initials
+  const initials = username ? username.slice(0, 2).toUpperCase() : '?';
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      {/* Avatar button */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        title={username}
+        style={{
+          width: '38px', height: '38px', borderRadius: '50%',
+          background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+          border: '2px solid rgba(255,255,255,0.4)',
+          color: 'white', fontWeight: '800', fontSize: '13px',
+          cursor: 'pointer', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', letterSpacing: '0.04em',
+          boxShadow: '0 2px 8px rgba(109,40,217,0.35)',
+          transition: 'box-shadow 0.2s, transform 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+      >
+        {initials}
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: '46px', right: 0,
+          backgroundColor: 'white', borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(91,33,182,0.18)',
+          minWidth: '180px', overflow: 'hidden',
+          zIndex: 1000,
+          animation: 'dropIn 0.15s ease',
+        }}>
+          <style>{`@keyframes dropIn { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }`}</style>
+
+          {/* User info header */}
+          <div style={{
+            padding: '14px 16px 10px',
+            borderBottom: '1px solid #f3f0ff',
+          }}>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: '#3b0764' }}>{username}</div>
+            <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '2px' }}>Logged in</div>
+          </div>
+
+          {/* Logout option */}
+          <button
+            onClick={onLogout}
+            style={{
+              width: '100%', textAlign: 'left',
+              padding: '11px 16px', border: 'none',
+              backgroundColor: 'transparent', cursor: 'pointer',
+              fontSize: '13px', fontWeight: '600',
+              color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fff5f5'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <span>🚪</span> Log Out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function Dashboard() {
   const navigate = useNavigate();
+  const [books, setBooks] = useState([]);
+  const [progressMap, setProgressMap] = useState({});
+  const [coverMap, setCoverMap] = useState({});
+  const [goals, setGoals] = useState([]);
+  const username = localStorage.getItem('username') || 'Reader';
 
-  const [books] = useState([
-    { id: 1, title: 'Harry Potter', author: 'J.K. Rowling', progress: 90, cover: '📚' },
-    { id: 2, title: 'Diary of a Wimpy Kid', author: 'Jeff Kinney', progress: 20, cover: '📖' },
-    { id: 3, title: 'Dune', author: 'Frank Herbert', progress: 15, cover: '📕' },
-  ]);
+  useEffect(() => {
+    const userID = Number(localStorage.getItem('userID'));
+    if (!userID || isNaN(userID)) { navigate('/'); return; }
 
-  const pageStyle = {
-    display: 'flex',
-    minHeight: '100vh',
-    fontFamily: 'Arial',
-  };
+    getBooks(userID).then(async data => {
+      setBooks(data);
 
-  const sidebarStyle = {
-    width: '220px',
-    backgroundColor: '#6200ea',
-    padding: '30px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  };
+      const progEntries = await Promise.all(
+        data.map(async b => [b.id, await fetchProgress(b.id)])
+      );
+      setProgressMap(Object.fromEntries(progEntries));
 
-  const sidebarHeadingStyle = {
-    color: 'white',
-    marginBottom: '30px',
-  };
+      const coverEntries = await Promise.all(
+        data.map(async b => [b.id, await fetchCover(b.title, b.author)])
+      );
+      setCoverMap(Object.fromEntries(coverEntries));
+    });
 
-  const sidebarButtonStyle = {
-    backgroundColor: 'transparent',
-    border: 'none',
-    color: 'white',
-    textAlign: 'left',
-    padding: '10px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '14px',
-  };
+    fetchGoals(userID).then(setGoals);
+  }, [navigate]);
 
-  const mainContentStyle = {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    padding: '30px',
-  };
+  // Logout: only clears session info, NOT credentials
+  function handleLogout() {
+    if (!window.confirm('Are you sure you want to log out?')) return;
+    localStorage.removeItem('userID');
+    localStorage.removeItem('username');
+    navigate('/');
+  }
 
-  const mainHeadingStyle = {
-    marginBottom: '20px',
-  };
+  // --- DERIVED STATS ---
+  const finishedBooks = books.filter(b => b.status === 'Finished');
+  const totalPages = books.reduce((sum, b) => sum + (b.totalPages || 0), 0);
 
-  const columnsWrapperStyle = {
-    display: 'flex',
-    gap: '20px',
-  };
+  const ratings = books.map(b => b.rating).filter(r => r != null && r > 0);
+  const avgRating = ratings.length
+    ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+    : 'N/A';
 
-  const bookColumnStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-    flex: 1,
-  };
+  const authorCount = {};
+  books.forEach(b => { if (b.author) authorCount[b.author] = (authorCount[b.author] || 0) + 1; });
+  const topAuthor = Object.entries(authorCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
-  const bookCardStyle = {
-    backgroundColor: '#b39ddb',
-    padding: '15px',
-    borderRadius: '10px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '400px',
-  };
+  const genreCount = {};
+  books.forEach(b => { if (b.genre && b.genre !== 'Unknown') genreCount[b.genre] = (genreCount[b.genre] || 0) + 1; });
+  const genreData = Object.entries(genreCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([genre, count]) => ({ genre, count }));
 
-  const progressBarBgStyle = {
-    backgroundColor: '#ddd',
-    borderRadius: '5px',
-    height: '8px',
-    width: '80%',
-    marginBottom: '6px',
-  };
+  const currentYear = new Date().getFullYear();
+  const yearlyGoal = goals.find(g => g.GoalType === 'Yearly' && g.Year === currentYear);
+  const goalTarget = yearlyGoal?.TargetBooks || 0;
+  const goalProgress = goalTarget > 0 ? Math.min(100, Math.round((finishedBooks.length / goalTarget) * 100)) : 0;
 
-  const progressBarFillStyle = (progress) => ({
-    backgroundColor: '#00bcd4',
-    height: '8px',
-    borderRadius: '5px',
-    width: `${progress}%`,
-  });
+  const sidebarItems = ['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'BOOK DETAILS', 'RECOMMENDATIONS'];
 
-  const coverStyle = {
-    fontSize: '50px',
-    marginLeft: '10px',
-  };
-
-  const playButtonStyle = {
-    backgroundColor: 'transparent',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    marginLeft: '10px',
-  };
-
-  const statsColumnStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-    width: '220px',
-  };
-
-  const statBoxStyle = {
-    backgroundColor: '#ddd',
-    padding: '12px',
-    borderRadius: '8px',
-    fontSize: '13px',
-    textAlign: 'center',
-  };
-
-  const goalCardStyle = {
-    backgroundColor: '#b39ddb',
-    padding: '15px',
-    borderRadius: '10px',
-    textAlign: 'center',
-  };
-
-  const goalPercentStyle = {
-    fontSize: '36px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-  };
-
-  const goalBarBgStyle = {
-    backgroundColor: '#ddd',
-    borderRadius: '5px',
-    height: '8px',
-  };
-
-  const goalBarFillStyle = {
-    backgroundColor: '#00bcd4',
-    height: '8px',
-    borderRadius: '5px',
-    width: '90%',
-  };
-
-  const genreCardStyle = {
-    backgroundColor: '#b39ddb',
-    padding: '15px',
-    borderRadius: '10px',
-    textAlign: 'center',
-  };
-
-  const genreIconStyle = {
-    fontSize: '60px',
-  };
-
-  const genreLabelStyle = {
-    fontSize: '12px',
-    color: '#555',
-  };
+  const statCards = [
+    { label: 'Pages Read', value: totalPages.toLocaleString(), icon: '📄' },
+    { label: 'Books Read', value: finishedBooks.length, icon: '✅' },
+    { label: 'Average Rating', value: avgRating !== 'N/A' ? `${avgRating} ★` : 'N/A', icon: '⭐' },
+    { label: 'Favorite Author', value: topAuthor, icon: '✍️' },
+    { label: 'Total Books', value: books.length, icon: '📚' },
+    { label: 'Genres Tracked', value: Object.keys(genreCount).length, icon: '🏷️' },
+  ];
 
   return (
-    <div style={pageStyle}>
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Georgia', serif", backgroundColor: '#f4f1fb' }}>
 
       {/* SIDEBAR */}
-      <div style={sidebarStyle}>
-        <h2 style={sidebarHeadingStyle}>LitLog</h2>
-        {['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'BOOK DETAILS', 'RECOMMENDATIONS'].map(item => (
+      <div style={{
+        width: '210px', backgroundColor: '#5b21b6', padding: '28px 18px',
+        display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0,
+        boxShadow: '4px 0 20px rgba(91,33,182,0.18)',
+      }}>
+        <div style={{ marginBottom: '32px' }}>
+          <h2 style={{ color: 'white', fontSize: '26px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 }}>LitLog</h2>
+          <p style={{ color: '#c4b5fd', fontSize: '11px', margin: '4px 0 0 0' }}>Hello, {username} 👋</p>
+        </div>
+        {sidebarItems.map(item => (
           <button
             key={item}
             onClick={() => {
+              if (item === 'DASHBOARD') navigate('/dashboard');
               if (item === 'LIBRARY' || item === 'BOOKSHELVES') navigate('/library');
             }}
-            style={sidebarButtonStyle}>
+            style={{
+              backgroundColor: item === 'DASHBOARD' ? 'rgba(255,255,255,0.18)' : 'transparent',
+              border: 'none', color: 'white', textAlign: 'left',
+              padding: '10px 14px', cursor: 'pointer', fontWeight: '600',
+              fontSize: '12px', letterSpacing: '0.08em', borderRadius: '8px',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = item === 'DASHBOARD' ? 'rgba(255,255,255,0.18)' : 'transparent'}
+          >
             {item}
           </button>
         ))}
       </div>
 
-      {/* MAIN CONTENT */}
-      <div style={mainContentStyle}>
-        <h2 style={mainHeadingStyle}>MY BOOKS</h2>
+      {/* MAIN */}
+      <div style={{ flex: 1, padding: '28px 28px', overflowY: 'auto' }}>
 
-        <div style={columnsWrapperStyle}>
-
-          {/* BOOK CARDS */}
-          <div style={bookColumnStyle}>
-            {books.map(book => (
-              <div key={book.id} style={bookCardStyle}>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ marginBottom: '10px' }}>{book.title}</h3>
-                  <div style={progressBarBgStyle}>
-                    <div style={progressBarFillStyle(book.progress)}></div>
-                  </div>
-                  <p style={{ fontSize: '12px' }}>{book.progress}%</p>
-                </div>
-                <div style={coverStyle}>{book.cover}</div>
-                <button style={playButtonStyle}>▶</button>
-              </div>
-            ))}
-          </div>
-
-          {/* STATS */}
-          <div style={statsColumnStyle}>
-            {[
-              'Pages Read: 1000',
-              'Books Read: 6',
-              'Most Read Author: Rowling',
-              'Average Rating: 4.8 Stars',
-              'Favorite Genre: Comedy',
-              'Average Days Read/Week: 5',
-            ].map(stat => (
-              <div key={stat} style={statBoxStyle}>{stat}</div>
-            ))}
-
-            {/* GOAL PROGRESS */}
-            <div style={goalCardStyle}>
-              <p style={{ fontWeight: 'bold', marginBottom: '10px' }}>MY GOAL PROGRESS</p>
-              <p style={goalPercentStyle}>90%</p>
-              <div style={goalBarBgStyle}>
-                <div style={goalBarFillStyle}></div>
-              </div>
-            </div>
-
-            {/* GENRE DISTRIBUTION */}
-            <div style={genreCardStyle}>
-              <p style={{ fontWeight: 'bold', marginBottom: '10px' }}>GENRE DISTRIBUTION</p>
-              <div style={genreIconStyle}>🥧</div>
-              <p style={genreLabelStyle}>Fantasy · Sci-Fi · Self Help</p>
-            </div>
-
-          </div>
+        {/* TOP BAR */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#3b0764', margin: 0, letterSpacing: '0.05em' }}>
+            MY BOOKS
+          </h2>
+          {/* ── Profile button lives here ── */}
+          <ProfileMenu username={username} onLogout={handleLogout} />
         </div>
+
+        {books.length === 0 ? (
+          <div style={{ textAlign: 'center', marginTop: '80px', color: '#888' }}>
+            <div style={{ fontSize: '60px', marginBottom: '16px' }}>📚</div>
+            <p style={{ fontSize: '16px' }}>No books yet.{' '}
+              <span style={{ color: '#7c3aed', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate('/library')}>
+                Add some!
+              </span>
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+
+            {/* LEFT: BOOK CARDS */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: '0 0 380px' }}>
+              {books.slice(0, 5).map((book) => {
+                const pagesRead = progressMap[book.id] || 0;
+                const pct = book.totalPages > 0 ? Math.min(100, Math.round((pagesRead / book.totalPages) * 100)) : 0;
+                const cover = coverMap[book.id];
+
+                return (
+                  <div key={book.id} style={{
+                    background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+                    borderRadius: '14px', padding: '14px 16px',
+                    display: 'flex', alignItems: 'center', gap: '14px',
+                    boxShadow: '0 4px 16px rgba(109,40,217,0.22)',
+                    position: 'relative', overflow: 'hidden',
+                  }}>
+                    <div style={{ position: 'absolute', right: '-20px', top: '-20px', width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.06)' }} />
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 style={{ color: 'white', fontSize: '15px', fontWeight: '700', margin: '0 0 3px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {book.title}
+                      </h3>
+                      <p style={{ color: '#c4b5fd', fontSize: '12px', margin: '0 0 10px 0' }}>{book.author}</p>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ flex: 1, height: '5px', backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: '10px', overflow: 'hidden' }}>
+                          <div style={{
+                            height: '100%', width: `${pct}%`,
+                            background: 'linear-gradient(90deg, #34d399, #06b6d4)',
+                            borderRadius: '10px', transition: 'width 0.6s ease',
+                          }} />
+                        </div>
+                        <span style={{ color: 'white', fontSize: '11px', fontWeight: '700', minWidth: '32px' }}>{pct}%</span>
+                      </div>
+
+                      <span style={{
+                        display: 'inline-block', marginTop: '8px',
+                        backgroundColor: 'rgba(255,255,255,0.18)', color: 'white',
+                        fontSize: '10px', fontWeight: '600', padding: '2px 8px',
+                        borderRadius: '20px', letterSpacing: '0.04em',
+                      }}>
+                        {book.status}
+                      </span>
+                    </div>
+
+                    <div style={{
+                      width: '64px', height: '88px', borderRadius: '8px', overflow: 'hidden',
+                      flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                    }}>
+                      {cover
+                        ? <img src={cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <span style={{ fontSize: '32px' }}>📖</span>
+                      }
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* RIGHT: STATS + GOAL + PIE */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {statCards.map(s => (
+                  <div key={s.label} style={{
+                    backgroundColor: 'white', borderRadius: '12px', padding: '14px 16px',
+                    boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
+                    borderLeft: '3px solid #7c3aed',
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                  }}>
+                    <span style={{ fontSize: '22px' }}>{s.icon}</span>
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#888', fontWeight: '600', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{s.label}</div>
+                      <div style={{ fontSize: '16px', fontWeight: '800', color: '#3b0764', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '130px' }}>{s.value}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '14px' }}>
+
+                <div style={{
+                  flex: 1, backgroundColor: 'white', borderRadius: '14px',
+                  padding: '18px 20px', boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  minHeight: '170px',
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: '800', color: '#888', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
+                    MY GOAL PROGRESS
+                  </div>
+                  {goalTarget > 0 ? (
+                    <>
+                      <div style={{ fontSize: '44px', fontWeight: '900', color: '#3b0764', lineHeight: 1 }}>
+                        {goalProgress}%
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#888', margin: '8px 0 12px' }}>
+                        {finishedBooks.length} / {goalTarget} books · {currentYear}
+                      </div>
+                      <div style={{ width: '100%', height: '8px', backgroundColor: '#ede9fe', borderRadius: '10px', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', width: `${goalProgress}%`,
+                          background: 'linear-gradient(90deg, #7c3aed, #34d399)',
+                          borderRadius: '10px', transition: 'width 0.8s ease',
+                        }} />
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎯</div>
+                      <p style={{ color: '#aaa', fontSize: '13px', margin: 0 }}>No goal set for {currentYear}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{
+                  flex: 1, backgroundColor: 'white', borderRadius: '14px',
+                  padding: '18px 20px', boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
+                  minHeight: '170px',
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: '800', color: '#888', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
+                    GENRE DISTRIBUTION
+                  </div>
+                  <PieChart data={genreData} />
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
