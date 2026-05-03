@@ -73,6 +73,7 @@ DB_PASSWORD=YourPassword123!
 DB_SERVER=localhost
 DB_NAME=LitLog
 PORT=5001
+JWT_SECRET=json webtoken key here 
 ```
 
 Start the server:
