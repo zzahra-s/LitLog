@@ -1,7 +1,8 @@
-const sql = require('../Models/db');
+const sql = require('../models/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
+
 function generateToken(user) {
     return jwt.sign(
         { userID: user.UserID, username: user.Username },
@@ -12,11 +13,13 @@ function generateToken(user) {
 
 // POST /auth/register
 exports.register = async (req, res) => {
-    const { username, email, password } = req.body;
     const errors = validationResult(req);
-if (!errors.isEmpty()) {
-  return res.status(400).json({ errors: errors.array() });
-}
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { username, email, password } = req.body;
+
     if (!username || !email || !password)
         return res.status(400).json({ message: 'All fields are required' });
 
@@ -32,11 +35,11 @@ if (!errors.isEmpty()) {
 
         res.status(201).json({
             message: 'User registered successfully',
-            token,  
+            token,
             user: {
-                userID: user.UserID,
+                userID:   user.UserID,
                 username: user.Username,
-                email: user.Email
+                email:    user.Email
             }
         });
     } catch (err) {
@@ -68,11 +71,11 @@ exports.login = async (req, res) => {
 
         res.json({
             message: 'Login successful',
-            token,           
+            token,
             user: {
-                userID: user.UserID,
+                userID:   user.UserID,
                 username: user.Username,
-                email: user.Email
+                email:    user.Email
             }
         });
     } catch (err) {
