@@ -28,8 +28,6 @@ export async function loginUser(email, password) {
   });
   return handleResponse(res);
 }
-
-// Get books for a user, converts to React-friendly format
 export async function getBooks(userID) {
   const res = await fetch(`${BASE_URL}/books/${userID}`);
   const data = await handleResponse(res);
@@ -48,13 +46,11 @@ export async function getBooks(userID) {
   }));
 }
 
-// Delete a book
 export async function deleteBook(bookID) {
   const res = await fetch(`${BASE_URL}/books/${bookID}`, { method: 'DELETE' });
   return handleResponse(res);
 }
 
-// Add a book
 export async function addBook(book) {
   const res = await fetch(`${BASE_URL}/books`, {
     method: 'POST',
@@ -103,7 +99,6 @@ export async function updateBook(id, bookData) {
   return handleResponse(res);
 }
 
-// ── Progress ──────────────────────────────────────────────────────────────────
 
 // Log pages read for a book
 export async function logProgress(bookID, pagesRead) {
@@ -122,7 +117,7 @@ export async function getProgress(bookID) {
   return data.PagesRead || 0;
 }
 
-// ── Goals ─────────────────────────────────────────────────────────────────────
+//Goals
 
 // Get all goals for a user
 export async function getGoals(userID) {
@@ -140,7 +135,7 @@ export async function setGoal(userID, goalType, targetBooks, year, month) {
   return handleResponse(res);
 }
 
-// Update an existing goal's target
+// Update an existing goaltarget
 export async function updateGoal(goalID, targetBooks) {
   const res = await fetch(`${BASE_URL}/goals/${goalID}`, {
     method: 'PUT',
