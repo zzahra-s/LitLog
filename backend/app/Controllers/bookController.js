@@ -1,4 +1,4 @@
-const sql = require('../Models/db');
+const sql = require('../models/db');
 
 //post/books
 exports.addBook = async (req, res) => {
@@ -6,9 +6,7 @@ exports.addBook = async (req, res) => {
 
     if (!userID || !title)
         return res.status(400).json({ message: 'UserID and Title are required' });
-    if (!userID || !title) return res.status(400).json({ message: 'UserID and Title are required' });
-if (isNaN(userID)) return res.status(400).json({ message: 'UserID must be a number' });
-if (totalPages && isNaN(totalPages)) return res.status(400).json({ message: 'totalPages must be a number' });
+
     try {
         await sql.query`
             INSERT INTO Books (UserID, Title, Author, Genre, TotalPages, YearPublished, Status)
