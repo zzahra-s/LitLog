@@ -64,13 +64,16 @@ Wait 30 seconds for SQL Server to start, then create the database and run the sc
 
 cd backend
 npm install
-
+npm install react-router-dom  npm install express mssql dotenv
+npm install cors
+npm install bcryptjs
 Create a .env file inside the backend/ folder (use .env.example as a template):
 DB_USER=sa
 DB_PASSWORD=YourPassword123!
 DB_SERVER=localhost
 DB_NAME=LitLog
 PORT=5001
+JWT_SECRET=json webtoken key here 
 ```
 
 Start the server:
@@ -100,6 +103,30 @@ Connected to SQL Server
 ### Frontend
 ```
 cd frontend
+npm install react-router-dom  npm install express mssql dotenv
+npm install cors
+npm install bcryptjs
+1. Clone the Repository
+Bash
+git clone <repository-url>
+2. Navigate to the Project Folder
+Bash
+cd project-name
+3. Go into the Frontend Folder
+Since your React app is inside frontend, run:
+Bash
+cd frontend
+4. Install Dependencies
+Make sure you have Node.js installed, then run:
+Bash
+npm install
+5. Start the Development Server
+Bash
+npm start
+6. Open in Browser
+After running, open:
+
+http://localhost:3000
 
 ```
 
