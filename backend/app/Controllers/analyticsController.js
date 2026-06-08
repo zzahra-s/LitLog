@@ -1,5 +1,4 @@
-
-const sql = require('../Models/db');
+const sql = require('../models/db');
 exports.getAnalytics = async (req, res) => {
     const { userID } = req.params;
 
