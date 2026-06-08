@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addBook } from '../services/api';
+//import { addBook } from '../services/api';
 
 const BASE_URL = 'http://localhost:5001';
 
-// ── Profile Dropdown ──────────────────────────────────────────────────────────
 function ProfileMenu({ username, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -72,7 +71,7 @@ function ProfileMenu({ username, onLogout }) {
   );
 }
 
-// ── Book Detail Modal ─────────────────────────────────────────────────────────
+// Book Detail Modal 
 function BookModal({ book, onClose, onAdd, alreadyAdded }) {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(alreadyAdded);
@@ -100,7 +99,7 @@ function BookModal({ book, onClose, onAdd, alreadyAdded }) {
       }}
     >
       <style>{`
-        @keyframes fadeIn  { from { opacity:0 } to { opacity:1 } }
+        @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
         @keyframes slideUp { from { opacity:0; transform:translateY(24px) } to { opacity:1; transform:translateY(0) } }
         .rec-modal::-webkit-scrollbar { width: 5px; }
         .rec-modal::-webkit-scrollbar-track { background: #f3f0ff; border-radius: 10px; }
@@ -173,9 +172,9 @@ function BookModal({ book, onClose, onAdd, alreadyAdded }) {
             <h3 style={{ fontSize: '11px', fontWeight: '800', color: '#7c3aed', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px 0' }}>Details</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {[
-                { label: 'Genre',            value: book.genre !== 'Unknown' ? book.genre : '—' },
-                { label: 'Pages',            value: book.totalPages > 0 ? book.totalPages : '—' },
-                { label: 'Published',        value: book.yearPublished !== 'N/A' ? book.yearPublished : '—' },
+                { label: 'Genre', value: book.genre !== 'Unknown' ? book.genre : '—' },
+                { label: 'Pages', value: book.totalPages > 0 ? book.totalPages : '—' },
+                { label: 'Published', value: book.yearPublished !== 'N/A' ? book.yearPublished : '—' },
                 { label: 'Community Rating', value: book.rating > 0 ? `${book.rating} / 5` : '—' },
               ].map(({ label, value }) => (
                 <div key={label} style={{ backgroundColor: '#faf5ff', borderRadius: '10px', padding: '10px 14px', border: '1px solid #ede9fe' }}>
@@ -210,10 +209,10 @@ function BookModal({ book, onClose, onAdd, alreadyAdded }) {
   );
 }
 
-// ── Recommendation Card ───────────────────────────────────────────────────────
+// Recommendation Card 
 function RecCard({ book, onView, onAdd, added }) {
-  const [hovered, setHovered]     = useState(false);
-  const [adding, setAdding]       = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [localAdded, setLocalAdded] = useState(added);
 
   async function handleAdd(e) {
@@ -229,20 +228,29 @@ function RecCard({ book, onView, onAdd, added }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        backgroundColor: 'white', borderRadius: '16px', padding: '16px',
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        padding: '16px',
         display: 'flex', gap: '14px', alignItems: 'flex-start',
-        boxShadow: hovered ? '0 8px 28px rgba(109,40,217,0.16)' : '0 2px 10px rgba(109,40,217,0.07)',
-        border: '1px solid', borderColor: hovered ? '#c4b5fd' : '#ede9fe',
-        transition: 'all 0.22s ease', cursor: 'default',
+        boxShadow: hovered
+          ? '0 8px 28px rgba(109,40,217,0.16)'
+          : '0 2px 10px rgba(109,40,217,0.07)',
+        border: '1px solid',
+        borderColor: hovered ? '#c4b5fd' : '#ede9fe',
+        transition: 'all 0.22s ease',
+        cursor: 'default',
       }}
     >
+      {/* Cover */}
       <div
         onClick={() => onView(book)}
         style={{
           width: '56px', height: '78px', borderRadius: '8px', overflow: 'hidden',
           flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-          backgroundColor: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', transition: 'transform 0.2s',
+          backgroundColor: '#ede9fe',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'transform 0.2s',
           transform: hovered ? 'scale(1.04)' : 'scale(1)',
         }}
       >
@@ -251,13 +259,15 @@ function RecCard({ book, onView, onAdd, added }) {
           : <span style={{ fontSize: '26px' }}>📖</span>}
       </div>
 
+      {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           onClick={() => onView(book)}
           style={{
             fontSize: '14px', fontWeight: '700', color: '#3b0764',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            cursor: 'pointer', marginBottom: '3px', transition: 'color 0.15s',
+            cursor: 'pointer', marginBottom: '3px',
+            transition: 'color 0.15s',
           }}
           onMouseEnter={e => e.currentTarget.style.color = '#7c3aed'}
           onMouseLeave={e => e.currentTarget.style.color = '#3b0764'}
@@ -268,13 +278,23 @@ function RecCard({ book, onView, onAdd, added }) {
 
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
           {book.genre && book.genre !== 'Unknown' && (
-            <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', backgroundColor: '#f3f0ff', color: '#7c3aed', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{book.genre}</span>
+            <span style={{
+              fontSize: '10px', fontWeight: '700', padding: '2px 8px',
+              borderRadius: '20px', backgroundColor: '#f3f0ff', color: '#7c3aed',
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+            }}>{book.genre}</span>
           )}
           {book.yearPublished && book.yearPublished !== 'N/A' && (
-            <span style={{ fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', backgroundColor: '#f0fdf4', color: '#059669' }}>{book.yearPublished}</span>
+            <span style={{
+              fontSize: '10px', fontWeight: '600', padding: '2px 8px',
+              borderRadius: '20px', backgroundColor: '#f0fdf4', color: '#059669',
+            }}>{book.yearPublished}</span>
           )}
           {book.rating > 0 && (
-            <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', backgroundColor: '#fffbeb', color: '#d97706' }}>⭐ {book.rating}</span>
+            <span style={{
+              fontSize: '10px', fontWeight: '700', padding: '2px 8px',
+              borderRadius: '20px', backgroundColor: '#fffbeb', color: '#d97706',
+            }}>⭐ {book.rating}</span>
           )}
         </div>
 
@@ -297,7 +317,9 @@ function RecCard({ book, onView, onAdd, added }) {
             disabled={adding || localAdded}
             style={{
               padding: '6px 12px', fontSize: '11px', fontWeight: '700',
-              background: localAdded ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, #5b21b6, #4f46e5)',
+              background: localAdded
+                ? 'linear-gradient(135deg, #059669, #10b981)'
+                : 'linear-gradient(135deg, #5b21b6, #4f46e5)',
               color: 'white', border: 'none', borderRadius: '8px',
               cursor: adding || localAdded ? 'default' : 'pointer',
               transition: 'all 0.2s', opacity: adding ? 0.7 : 1,
@@ -311,52 +333,65 @@ function RecCard({ book, onView, onAdd, added }) {
   );
 }
 
-// ── Section ───────────────────────────────────────────────────────────────────
+// Section 
 function RecommendationSection({ reason, books, onView, onAdd, addedSet }) {
   const reasonIcons = {
-    'Because you like':           '💜',
-    'Because you liked':          '💜',
-    'More from':                  '✍️',
-    'Popular among similar':      '👥',
-    'Popular picks':              '🔥',
+    'Because you love': '💜',
+    'More by': '✍️',
+    'Popular picks': '🔥',
   };
   const icon = Object.entries(reasonIcons).find(([k]) => reason?.startsWith(k))?.[1] || '✨';
 
   return (
     <div style={{
-      backgroundColor: 'white', borderRadius: '16px', padding: '20px 22px',
-      boxShadow: '0 2px 10px rgba(109,40,217,0.08)', border: '1px solid #ede9fe',
+      backgroundColor: 'white', borderRadius: '16px',
+      padding: '20px 22px',
+      boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
+      border: '1px solid #ede9fe',
     }}>
+      {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
         <span style={{ fontSize: '18px' }}>{icon}</span>
         <span style={{ fontSize: '14px', fontWeight: '800', color: '#3b0764', letterSpacing: '0.03em' }}>{reason}</span>
-        <span style={{ backgroundColor: '#7c3aed', color: 'white', fontSize: '10px', fontWeight: '700', padding: '1px 7px', borderRadius: '20px' }}>{books.length}</span>
+        <span style={{
+          backgroundColor: '#7c3aed', color: 'white',
+          fontSize: '10px', fontWeight: '700',
+          padding: '1px 7px', borderRadius: '20px',
+        }}>{books.length}</span>
         <div style={{ flex: 1, height: '1px', backgroundColor: '#ede9fe', marginLeft: '4px' }} />
       </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
         {books.map(book => (
-          <RecCard key={book.id} book={book} onView={onView} onAdd={onAdd} added={addedSet.has(book.title?.toLowerCase())} />
+          <RecCard
+            key={book.id}
+            book={book}
+            onView={onView}
+            onAdd={onAdd}
+            added={addedSet.has(book.title?.toLowerCase())}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+//Main Page 
 function Recommendations() {
   const navigate = useNavigate();
-  const [recs, setRecs]                   = useState([]);
-  const [basedOn, setBasedOn]             = useState({});
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState('');
-  const [selectedBook, setSelectedBook]   = useState(null);
-  const [addedTitles, setAddedTitles]     = useState(new Set());
+  const [recs, setRecs] = useState([]);
+  const [basedOn, setBasedOn] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [addedTitles, setAddedTitles] = useState(new Set());
   const [existingTitles, setExistingTitles] = useState(new Set());
   const username = localStorage.getItem('username') || 'Reader';
-  const userID   = Number(localStorage.getItem('userID'));
+  const userID = Number(localStorage.getItem('userID'));
 
   useEffect(() => {
     if (!userID || isNaN(userID)) { navigate('/'); return; }
+
 
     import('../services/api').then(({ getBooks }) => {
       getBooks(userID).then(data => {
@@ -379,7 +414,6 @@ function Recommendations() {
 
   function handleLogout() {
     if (!window.confirm('Are you sure you want to log out?')) return;
-    localStorage.removeItem('token');
     localStorage.removeItem('userID');
     localStorage.removeItem('username');
     navigate('/');
@@ -394,14 +428,14 @@ function Recommendations() {
       await import('../services/api').then(({ addBook }) =>
         addBook({
           userID,
-          title:         book.title,
-          author:        book.author        || 'Unknown',
-          genre:         book.genre         || 'Unknown',
-          totalPages:    Number(book.totalPages)    || 0,
+          title: book.title,
+          author: book.author || 'Unknown',
+          genre: book.genre || 'Unknown',
+          totalPages: Number(book.totalPages) || 0,
           yearPublished: Number(book.yearPublished) || null,
-          status:        'Want to Read',
-          rating:        null,
-          notes:         null,
+          status: 'Want to Read',
+          rating: null,
+          notes: null,
         })
       );
       setAddedTitles(prev => new Set([...prev, lower]));
@@ -411,16 +445,7 @@ function Recommendations() {
     }
   }
 
-  // ✅ FIX: backend sends topGenres (array) and topAuthors (array)
-  const topGenres  = basedOn.topGenres  || [];
-  const topAuthors = basedOn.topAuthors || [];
-
-  // Subtitle string: "Fiction & Mystery + Stephen King"
-  const tasteLabel = [
-    topGenres.slice(0, 2).join(' & '),
-    topAuthors[0] && `works by ${topAuthors[0]}`,
-  ].filter(Boolean).join(' · ');
-
+  // Group recs by reason
   const grouped = recs.reduce((acc, book) => {
     const key = book.reason || 'Recommended for You';
     if (!acc[key]) acc[key] = [];
@@ -449,10 +474,10 @@ function Recommendations() {
           <button
             key={item}
             onClick={() => {
-              if (item === 'DASHBOARD')       navigate('/dashboard');
-              if (item === 'LIBRARY')         navigate('/library');
-              if (item === 'BOOKSHELVES')     navigate('/bookshelves');
-              if (item === 'PROGRESS')        navigate('/progress');
+              if (item === 'DASHBOARD') navigate('/dashboard');
+              if (item === 'LIBRARY') navigate('/library');
+              if (item === 'BOOKSHELVES') navigate('/bookshelves');
+              if (item === 'PROGRESS') navigate('/progress');
               if (item === 'RECOMMENDATIONS') navigate('/recommendations');
             }}
             style={{
@@ -488,39 +513,38 @@ function Recommendations() {
             <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#3b0764', margin: 0, letterSpacing: '0.05em' }}>
               RECOMMENDATIONS
             </h2>
-            {/* ✅ FIX: now uses topGenres[]/topAuthors[] arrays */}
-            {!loading && tasteLabel && (
+            {!loading && (basedOn.topGenre || basedOn.topAuthor) && (
               <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#a78bfa', fontStyle: 'italic' }}>
-                Based on your taste in {tasteLabel}
+                Based on your taste in {[basedOn.topGenre, basedOn.topAuthor && `works by ${basedOn.topAuthor}`].filter(Boolean).join(' & ')}
               </p>
             )}
           </div>
           <ProfileMenu username={username} onLogout={handleLogout} />
         </div>
 
-        {/* Taste chips — one per genre + one per author */}
-        {!loading && (topGenres.length > 0 || topAuthors.length > 0) && (
+        {/* Taste chips */}
+        {!loading && (basedOn.topGenre || basedOn.topAuthor) && (
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
-            {topGenres.map(g => (
-              <span key={g} style={{
+            {basedOn.topGenre && (
+              <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                 backgroundColor: '#7c3aed', color: 'white',
                 fontSize: '11px', fontWeight: '700', padding: '5px 12px',
                 borderRadius: '20px', letterSpacing: '0.04em',
               }}>
-                🏷️ {g}
+                🏷️ Top Genre: {basedOn.topGenre}
               </span>
-            ))}
-            {topAuthors.map(a => (
-              <span key={a} style={{
+            )}
+            {basedOn.topAuthor && (
+              <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                 backgroundColor: '#4f46e5', color: 'white',
                 fontSize: '11px', fontWeight: '700', padding: '5px 12px',
                 borderRadius: '20px', letterSpacing: '0.04em',
               }}>
-                ✍️ {a}
+                ✍️ Fav Author: {basedOn.topAuthor}
               </span>
-            ))}
+            )}
           </div>
         )}
 
