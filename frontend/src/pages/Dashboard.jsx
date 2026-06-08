@@ -87,7 +87,6 @@ function ProfileMenu({ username, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  // Close when clicking outside
   useEffect(() => {
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -96,12 +95,10 @@ function ProfileMenu({ username, onLogout }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Avatar initials
   const initials = username ? username.slice(0, 2).toUpperCase() : '?';
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      {/* Avatar button */}
       <button
         onClick={() => setOpen(o => !o)}
         title={username}
@@ -121,7 +118,6 @@ function ProfileMenu({ username, onLogout }) {
         {initials}
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div style={{
           position: 'absolute', top: '46px', right: 0,
@@ -132,17 +128,10 @@ function ProfileMenu({ username, onLogout }) {
           animation: 'dropIn 0.15s ease',
         }}>
           <style>{`@keyframes dropIn { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }`}</style>
-
-          {/* User info header */}
-          <div style={{
-            padding: '14px 16px 10px',
-            borderBottom: '1px solid #f3f0ff',
-          }}>
+          <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid #f3f0ff' }}>
             <div style={{ fontSize: '13px', fontWeight: '700', color: '#3b0764' }}>{username}</div>
             <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '2px' }}>Logged in</div>
           </div>
-
-          {/* Logout option */}
           <button
             onClick={onLogout}
             style={{
@@ -163,8 +152,8 @@ function ProfileMenu({ username, onLogout }) {
     </div>
   );
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
+// ── Main Dashboard ────────────────────────────────────────────────────────────
 function Dashboard() {
   const navigate = useNavigate();
   const [books, setBooks] = useState([]);
@@ -194,7 +183,6 @@ function Dashboard() {
     fetchGoals(userID).then(setGoals);
   }, [navigate]);
 
-  // Logout: only clears session info, NOT credentials
   function handleLogout() {
     if (!window.confirm('Are you sure you want to log out?')) return;
     localStorage.removeItem('userID');
@@ -227,7 +215,7 @@ function Dashboard() {
   const goalTarget = yearlyGoal?.TargetBooks || 0;
   const goalProgress = goalTarget > 0 ? Math.min(100, Math.round((finishedBooks.length / goalTarget) * 100)) : 0;
 
-  const sidebarItems = ['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'BOOK DETAILS', 'RECOMMENDATIONS'];
+  const sidebarItems = ['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'PROGRESS', 'RECOMMENDATIONS'];
 
   const statCards = [
     { label: 'Pages Read', value: totalPages.toLocaleString(), icon: '📄' },
@@ -254,10 +242,12 @@ function Dashboard() {
         {sidebarItems.map(item => (
           <button
             key={item}
-            onClick={() => {
-              if (item === 'DASHBOARD') navigate('/dashboard');
-              if (item === 'LIBRARY' || item === 'BOOKSHELVES') navigate('/library');
-            }}
+onClick={() => {
+  if (item === 'DASHBOARD') navigate('/dashboard');
+  if (item === 'LIBRARY') navigate('/library');
+  if (item === 'BOOKSHELVES') navigate('/bookshelves');
+  if (item === 'PROGRESS') navigate('/progress');
+}}
             style={{
               backgroundColor: item === 'DASHBOARD' ? 'rgba(255,255,255,0.18)' : 'transparent',
               border: 'none', color: 'white', textAlign: 'left',
@@ -274,14 +264,13 @@ function Dashboard() {
       </div>
 
       {/* MAIN */}
-      <div style={{ flex: 1, padding: '28px 28px', overflowY: 'auto' }}>
+      <div style={{ flex: 1, padding: '28px', overflowY: 'auto' }}>
 
         {/* TOP BAR */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#3b0764', margin: 0, letterSpacing: '0.05em' }}>
             MY BOOKS
           </h2>
-          {/* ── Profile button lives here ── */}
           <ProfileMenu username={username} onLogout={handleLogout} />
         </div>
 

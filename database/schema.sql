@@ -28,3 +28,53 @@ CREATE TABLE Books (
     AddedAt     DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (UserID) REFERENCES Users(UserID)
 );
+
+CREATE TABLE Ratings (
+    RatingID   INT IDENTITY(1,1) PRIMARY KEY,
+    BookID     INT NOT NULL,
+    UserID     INT NOT NULL,
+    Stars      TINYINT CHECK (Stars BETWEEN 1 AND 5),
+    RatedAt    DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (BookID) REFERENCES Books(BookID),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);
+
+CREATE TABLE Notes (
+    NoteID      INT IDENTITY(1,1) PRIMARY KEY,
+    BookID      INT NOT NULL,
+    UserID      INT NOT NULL,
+    NoteText    NVARCHAR(MAX),
+    UpdatedAt   DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (BookID) REFERENCES Books(BookID),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);
+
+CREATE TABLE Summaries (
+    SummaryID    INT IDENTITY(1,1) PRIMARY KEY,
+    BookID       INT NOT NULL,
+    UserID       INT NOT NULL,
+    SummaryText  NVARCHAR(MAX),
+    UpdatedAt    DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (BookID) REFERENCES Books(BookID),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);
+
+CREATE TABLE ReadingProgress (
+    ProgressID   INT IDENTITY(1,1) PRIMARY KEY,
+    BookID       INT NOT NULL,
+    UserID       INT NOT NULL,
+    PagesRead    INT NOT NULL CHECK (PagesRead >= 0),
+    LoggedAt     DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (BookID) REFERENCES Books(BookID),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);
+
+CREATE TABLE ReadingGoals (
+    GoalID       INT IDENTITY(1,1) PRIMARY KEY,
+    UserID       INT NOT NULL,
+    TargetBooks  INT NOT NULL CHECK (TargetBooks >= 1),
+    StartDate    DATE NOT NULL,
+    Deadline     DATE NOT NULL,
+    CreatedAt    DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (UserID) REFERENCES Users(UserID)
+);

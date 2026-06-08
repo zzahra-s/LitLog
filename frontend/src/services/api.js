@@ -29,11 +29,11 @@ export async function loginUser(email, password) {
   return handleResponse(res);
 }
 
-// Get books for a user
+// Get books for a user, converts to React-friendly format
 export async function getBooks(userID) {
   const res = await fetch(`${BASE_URL}/books/${userID}`);
   const data = await handleResponse(res);
-  // Normalize PascalCase SQL columns → camelCase for React
+
   return data.map(b => ({
     id: b.BookID,
     title: b.Title,
@@ -41,8 +41,10 @@ export async function getBooks(userID) {
     genre: b.Genre,
     totalPages: b.TotalPages,
     yearPublished: b.YearPublished,
-    status: b.Status,
     rating: b.Rating,
+    status: b.Status,
+    notes: b.Notes || null,
+    userID: b.UserID
   }));
 }
 
@@ -52,7 +54,7 @@ export async function deleteBook(bookID) {
   return handleResponse(res);
 }
 
-// Add a book (used for external books and BookDetails form)
+// Add a book
 export async function addBook(book) {
   const res = await fetch(`${BASE_URL}/books`, {
     method: 'POST',
@@ -71,10 +73,24 @@ export async function addBook(book) {
   });
   return handleResponse(res);
 }
+
 // Get a single book by ID
 export async function getBookById(id) {
   const res = await fetch(`${BASE_URL}/books/${id}`);
-  return handleResponse(res);
+  const b = await handleResponse(res);
+
+  return {
+    id: b.BookID,
+    title: b.Title,
+    author: b.Author,
+    genre: b.Genre,
+    totalPages: b.TotalPages,
+    yearPublished: b.YearPublished,
+    rating: b.Rating,
+    status: b.Status,
+    notes: b.Notes || null,
+    userID: b.UserID
+  };
 }
 
 // Update a book by ID
@@ -83,6 +99,53 @@ export async function updateBook(id, bookData) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(bookData)
+  });
+  return handleResponse(res);
+}
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+
+// Log pages read for a book
+export async function logProgress(bookID, pagesRead) {
+  const res = await fetch(`${BASE_URL}/progress`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookID, pagesRead })
+  });
+  return handleResponse(res);
+}
+
+// Get latest progress for a book
+export async function getProgress(bookID) {
+  const res = await fetch(`${BASE_URL}/progress/${bookID}`);
+  const data = await handleResponse(res);
+  return data.PagesRead || 0;
+}
+
+// ── Goals ─────────────────────────────────────────────────────────────────────
+
+// Get all goals for a user
+export async function getGoals(userID) {
+  const res = await fetch(`${BASE_URL}/goals/${userID}`);
+  return handleResponse(res);
+}
+
+// Set a new reading goal
+export async function setGoal(userID, goalType, targetBooks, year, month) {
+  const res = await fetch(`${BASE_URL}/goals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userID, goalType, targetBooks, year, month: month || null })
+  });
+  return handleResponse(res);
+}
+
+// Update an existing goal's target
+export async function updateGoal(goalID, targetBooks) {
+  const res = await fetch(`${BASE_URL}/goals/${goalID}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetBooks })
   });
   return handleResponse(res);
 }

@@ -1,351 +1,585 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBooks, deleteBook, addBook } from '../services/api';
-import { searchExternalBooks } from '../services/externalapi';//external api being used
+import { searchExternalBooks } from '../services/externalapi';
 
+const BASE_URL = 'http://localhost:5001';
+
+// ── Profile Dropdown ──────────────────────────────────────────────────────────
+function ProfileMenu({ username, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const initials = username ? username.slice(0, 2).toUpperCase() : '?';
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        title={username}
+        style={{
+          width: '38px', height: '38px', borderRadius: '50%',
+          background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+          border: '2px solid rgba(255,255,255,0.4)',
+          color: 'white', fontWeight: '800', fontSize: '13px',
+          cursor: 'pointer', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', letterSpacing: '0.04em',
+          boxShadow: '0 2px 8px rgba(109,40,217,0.35)',
+          transition: 'box-shadow 0.2s, transform 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+      >
+        {initials}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '46px', right: 0,
+          backgroundColor: 'white', borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(91,33,182,0.18)',
+          minWidth: '180px', overflow: 'hidden', zIndex: 1000,
+          animation: 'dropIn 0.15s ease',
+        }}>
+          <style>{`@keyframes dropIn { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }`}</style>
+          <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid #f3f0ff' }}>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: '#3b0764' }}>{username}</div>
+            <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '2px' }}>Logged in</div>
+          </div>
+          <button
+            onClick={onLogout}
+            style={{
+              width: '100%', textAlign: 'left', padding: '11px 16px',
+              border: 'none', backgroundColor: 'transparent', cursor: 'pointer',
+              fontSize: '13px', fontWeight: '600', color: '#dc2626',
+              display: 'flex', alignItems: 'center', gap: '8px',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fff5f5'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <span>🚪</span> Log Out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Book Summary Modal ────────────────────────────────────────────────────────
+function BookSummaryModal({ book, onClose, onAdd }) {
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
+
+  if (!book) return null;
+
+  async function handleAdd() {
+    setAdding(true);
+    await onAdd(book);
+    setAdding(false);
+    setAdded(true);
+  }
+
+  const stars = book.rating > 0
+    ? '★'.repeat(Math.round(book.rating)) + '☆'.repeat(5 - Math.round(book.rating))
+    : null;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0,
+        backgroundColor: 'rgba(30, 10, 60, 0.55)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 1000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px',
+        animation: 'fadeIn 0.18s ease',
+      }}
+    >
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: translateY(0) } }
+        .summary-modal::-webkit-scrollbar { width: 5px; }
+        .summary-modal::-webkit-scrollbar-track { background: #f3f0ff; border-radius: 10px; }
+        .summary-modal::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 10px; }
+      `}</style>
+      <div
+        className="summary-modal"
+        onClick={e => e.stopPropagation()}
+        style={{
+          backgroundColor: 'white', borderRadius: '20px',
+          width: '100%', maxWidth: '560px', maxHeight: '85vh', overflowY: 'auto',
+          boxShadow: '0 24px 80px rgba(91, 33, 182, 0.28)',
+          animation: 'slideUp 0.22s ease',
+        }}
+      >
+        <div style={{
+          background: 'linear-gradient(135deg, #5b21b6 0%, #4f46e5 100%)',
+          borderRadius: '20px 20px 0 0',
+          padding: '24px 28px 20px',
+          display: 'flex', gap: '20px', alignItems: 'flex-start',
+        }}>
+          <div style={{
+            width: '80px', height: '110px', borderRadius: '10px', overflow: 'hidden',
+            flexShrink: 0, boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            backgroundColor: 'rgba(255,255,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {book.cover && book.cover.startsWith('http')
+              ? <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: '36px' }}>📖</span>}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '18px', fontWeight: '800', lineHeight: 1.3, fontFamily: "'Georgia', serif" }}>
+              {book.title}
+            </h2>
+            <p style={{ color: '#c4b5fd', fontSize: '13px', margin: '0 0 10px 0', fontWeight: '600' }}>by {book.author}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+              {book.yearPublished && book.yearPublished !== 'N/A' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#ffffff22', color: 'white', fontSize: '11px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px' }}>📅 {book.yearPublished}</span>
+              )}
+              {book.totalPages > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#ffffff22', color: 'white', fontSize: '11px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px' }}>📄 {book.totalPages} pages</span>
+              )}
+              {stars && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#ffffff22', color: '#fde68a', fontSize: '11px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px' }}>
+                  {stars} <span style={{ color: 'white', marginLeft: '4px' }}>({book.rating}/5)</span>
+                </span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', color: 'white', borderRadius: '50%', width: '30px', height: '30px', flexShrink: 0, cursor: 'pointer', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+        </div>
+        <div style={{ padding: '24px 28px 28px' }}>
+          <section style={{ marginBottom: '22px' }}>
+            <h3 style={{ fontSize: '11px', fontWeight: '800', color: '#7c3aed', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px 0' }}>About this book</h3>
+            <p style={{ fontSize: '13px', color: '#444', lineHeight: 1.8, margin: 0, fontFamily: "'Georgia', serif" }}>
+              {book.description ? book.description : <span style={{ color: '#aaa', fontStyle: 'italic' }}>No description available.</span>}
+            </p>
+          </section>
+          <section style={{ marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '11px', fontWeight: '800', color: '#7c3aed', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px 0' }}>Details</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {[
+                { label: 'Genre', value: book.genre !== 'Unknown' ? book.genre : '—' },
+                { label: 'Pages', value: book.totalPages > 0 ? book.totalPages : '—' },
+                { label: 'Published', value: book.yearPublished !== 'N/A' ? book.yearPublished : '—' },
+                { label: 'Community Rating', value: book.rating > 0 ? `${book.rating} / 5` : '—' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ backgroundColor: '#faf5ff', borderRadius: '10px', padding: '10px 14px', border: '1px solid #ede9fe' }}>
+                  <div style={{ fontSize: '10px', fontWeight: '700', color: '#a78bfa', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '3px' }}>{label}</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#3b0764' }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <button
+            onClick={handleAdd} disabled={adding || added}
+            style={{
+              width: '100%', padding: '13px',
+              background: added ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, #5b21b6, #4f46e5)',
+              border: 'none', borderRadius: '12px', color: 'white', fontSize: '14px', fontWeight: '800',
+              cursor: adding || added ? 'default' : 'pointer', transition: 'all 0.25s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            }}
+            onMouseEnter={e => { if (!adding && !added) e.currentTarget.style.opacity = '0.88'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+          >
+            {added ? '✅ Added to Library!' : adding ? 'Adding...' : '+ Add to Library'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Library Component ────────────────────────────────────────────────────
 function Library() {
   const navigate = useNavigate();
-
-  const [books, setBooks] = useState([]);//list of user books starts emoty
-  const [search, setSearch] = useState('');//text typed in search bar
-  const [showFilters, setShowFilters] = useState(false);//whether filter panel is visible
+  const [books, setBooks] = useState([]);
+  const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [filterGenre, setFilterGenre] = useState('');
   const [filterShelf, setFilterShelf] = useState('');
-  const [filterRating, setFilterRating] = useState('');//store selected filters
+  const [filterRating, setFilterRating] = useState('');
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [externalResults, setExternalResults] = useState([]);
+  const [externalQuery, setExternalQuery] = useState('');
+  const [selectedBook, setSelectedBook] = useState(null);
+  const username = localStorage.getItem('username') || 'Reader';
 
-  const [openDropdown, setOpenDropdown] = useState(null);//which book's dropdown is open
-  const [externalResults, setExternalResults] = useState([]);//books from Google API
-  const [externalQuery, setExternalQuery] = useState('');//search text for external API
-
-  // --- STYLE OBJECTS ---
-  const pageStyle = { display: 'flex', minHeight: '100vh', fontFamily: 'Arial' };
-  const sidebarStyle = { width: '220px', backgroundColor: '#6200ea', padding: '30px 20px', display: 'flex', flexDirection: 'column', gap: '10px' };
-  const sidebarButtonStyle = { backgroundColor: 'transparent', border: 'none', color: 'white', textAlign: 'left', padding: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
-  const mainStyle = { flex: 1, backgroundColor: 'white', padding: '30px' };
-  const topBarStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' };
-  const searchStyle = { padding: '8px 14px', borderRadius: '20px', border: '1px solid #ccc', fontSize: '14px', width: '200px' };
-  const addButtonStyle = { padding: '10px 20px', backgroundColor: '#6200ea', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
-  const tableContainerStyle = { backgroundColor: '#b39ddb', borderRadius: '15px', padding: '20px', overflowX: 'auto' };
-  const tableStyle = { width: '100%', borderCollapse: 'collapse' };
-  const thStyle = { backgroundColor: '#d1c4e9', padding: '12px 15px', textAlign: 'left', fontWeight: 'bold', fontSize: '14px', border: '1px solid #ccc' };
-  const tdStyle = { padding: '15px', fontSize: '14px', border: '1px solid #ccc', backgroundColor: '#b39ddb', verticalAlign: 'middle' };
-  const optionsButtonStyle = { padding: '6px 12px', backgroundColor: '#d1c4e9', border: '1px solid #ccc', borderRadius: '5px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '5px' };
-  const dropdownStyle = { position: 'absolute', backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '8px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '150px' };
-  const dropdownItemStyle = { padding: '10px 15px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #eee' };
-
-  // --- FETCH USER BOOKS ---
   useEffect(() => {
-    const userID = Number(localStorage.getItem('userID'));//get userID from browser storage and convert to number
-    if (!userID || isNaN(userID)) { //if no userID or invalid
-      alert('User not logged in!');//display error
-      navigate('/login');//return to login page
-      return;
-    }
-
-    getBooks(userID).then(data => {//fetch books from backend
-      // sanitize missing title/author
-      const sanitized = data.map(b => ({
-//loop through books,loop through books
-//fix missing data:if no title → "Untitled",if no author → "Unknown"
-        ...b,
-        title: b.title || 'Untitled',
-        author: b.author || 'Unknown',
-      }));
-      setBooks(sanitized);//save books in state
+    const userID = Number(localStorage.getItem('userID'));
+    if (!userID || isNaN(userID)) { navigate('/'); return; }
+    getBooks(userID).then(data => {
+      setBooks(data.map(b => ({ ...b, title: b.title || 'Untitled', author: b.author || 'Unknown' })));
     });
   }, [navigate]);
 
-  // --- DERIVED FILTER OPTIONS ---
+  useEffect(() => {
+    function handleClick() { setOpenDropdown(null); }
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  function handleLogout() {
+    if (!window.confirm('Are you sure you want to log out?')) return;
+    localStorage.removeItem('userID');
+    localStorage.removeItem('username');
+    navigate('/');
+  }
+
   const genreOptions = [...new Set(books.map(b => b.genre).filter(Boolean))].sort();
-//books.map(...) → get all genres
-//filter(Boolean) → remove empty ones
-//.new Set(...) → remove duplicates
-//[... ] → convert back to array
-//.sort() → sort alphabetically
-//result = list of unique genres
+  const activeFilterCount = [filterGenre, filterShelf, filterRating].filter(Boolean).length;
 
- const activeFilterCount = [filterGenre, filterShelf, filterRating].filter(Boolean).length;
- //count how many filters are active
-
-  // --- FILTER LOCAL BOOKS SAFELY ---
-  const filteredBooks = books.filter(book => {//go through each book
+  const filteredBooks = books.filter(book => {
     const matchesSearch =
-      (book.title?.toLowerCase() || '').includes(search.toLowerCase()) ||//convert title to lowercase,check if it contains search text
+      (book.title?.toLowerCase() || '').includes(search.toLowerCase()) ||
       (book.author?.toLowerCase() || '').includes(search.toLowerCase());
     const matchesGenre = !filterGenre || (book.genre?.toLowerCase() === filterGenre.toLowerCase());
-    //if no filter → allow all,else → match genre
-
     const matchesShelf = !filterShelf || book.status === filterShelf;
-    //shelf match
-
     const matchesRating = !filterRating || Number(book.rating) >= Number(filterRating);
-    //rating match
-
     return matchesSearch && matchesGenre && matchesShelf && matchesRating;
-    //final res,book must satisfy ALL conditions
   });
 
-  // --- DELETE BOOK ---
   async function handleDelete(id) {
-    if (window.confirm('Are you sure you want to delete this book?')) {//ask user for confirmation
-      await deleteBook(id);//delete from backend
-      setBooks(books.filter(book => book.id !== id));//remove from UI
+    if (window.confirm('Are you sure you want to delete this book?')) {
+      await deleteBook(id);
+      setBooks(books.filter(b => b.id !== id));
     }
   }
 
-  // --- MOVE BOOK SHELF ---
-  function handleMoveShelf(id, newStatus) {
-    setBooks(books.map(book =>//update only the selected book
-      book.id === id ? { ...book, status: newStatus } : book
-    ));
-    setOpenDropdown(null);//close dropdown
-  }
-
-  // --- EXTERNAL SEARCH ---
-  async function handleExternalSearch(e) {//runs when user types
-    const query = e.target.value;//get typed text
-    setExternalQuery(query);//get typed text
-
-    if (query.length > 2) {//only search if more than 2 letters
-      const results = await searchExternalBooks(query);//
-      setExternalResults(results);//store results
-    } else {
-      setExternalResults([]);//clear results
-    }
-  }
-
-  // --- ADD EXTERNAL BOOK ---
-  async function handleAddExternalBook(book) {//add book from Google
-    const userID = Number(localStorage.getItem('userID'));//get userID
-    if (!userID || isNaN(userID)) {//check login
-      alert('User not logged in');
-      return;
-    }
-
-    const title = book.title?.trim();//get title and remove spaces
-    if (!title) {//stop if no title
-      alert('Cannot add a book without a title');
-      return;
-    }
-
-    const sanitizedBook = {//clean the data
-      ...book,
-      totalPages: Number(book.totalPages) || 0,
-      yearPublished: Number(book.yearPublished) || null,
-      genre: book.genre || 'Unknown',
-    };
-
+  async function handleMoveShelf(id, newStatus) {
     try {
-      await addBook({ ...sanitizedBook, userID });//send to backend
-      alert('Book added!');
-      getBooks(userID).then(data => {//refresh books
-        const sanitized = data.map(b => ({ ...b, title: b.title || 'Untitled', author: b.author || 'Unknown' }));
-        setBooks(sanitized);
+      await fetch(`${BASE_URL}/books/${id}/shelf`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setBooks(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
+    } catch (err) {
+      alert('Failed to update shelf: ' + err.message);
+    }
+    setOpenDropdown(null);
+  }
+
+  async function handleViewSummary(book) {
+    if (book.id && !book.description) {
+      try {
+        const res = await fetch(`https://www.googleapis.com/books/v1/volumes/${book.id}`);
+        const data = await res.json();
+        setSelectedBook({ ...book, description: data.volumeInfo?.description || null });
+        return;
+      } catch { /* fall through */ }
+    }
+    setSelectedBook(book);
+  }
+
+  async function handleExternalSearch(e) {
+    const query = e.target.value;
+    setExternalQuery(query);
+    if (query.length > 2) {
+      const results = await searchExternalBooks(query);
+      setExternalResults(results);
+    } else {
+      setExternalResults([]);
+    }
+  }
+
+  async function handleAddExternalBook(book) {
+    const userID = Number(localStorage.getItem('userID'));
+    if (!userID || isNaN(userID)) { alert('User not logged in'); return; }
+    const title = book.title?.trim();
+    if (!title) { alert('Cannot add a book without a title'); return; }
+    const alreadyExists = books.some(
+      b => b.title.trim().toLowerCase() === title.toLowerCase() &&
+           (b.author || '').trim().toLowerCase() === (book.author || '').trim().toLowerCase()
+    );
+    if (alreadyExists) { alert(`"${title}" is already in your library.`); return; }
+    try {
+      await addBook({ ...book, userID, totalPages: Number(book.totalPages) || 0, yearPublished: Number(book.yearPublished) || null, genre: book.genre || 'Unknown' });
+      getBooks(userID).then(data => {
+        setBooks(data.map(b => ({ ...b, title: b.title || 'Untitled', author: b.author || 'Unknown' })));
       });
     } catch (err) {
-      console.error(err);
       alert('Failed to add book: ' + err.message);
     }
   }
 
+  const statusColor = {
+    'Currently Reading': '#7c3aed',
+    'Finished': '#059669',
+    'Want to Read': '#4f46e5',
+    'Did Not Finish': '#dc2626',
+  };
+
+  const sidebarItems = ['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'PROGRESS', 'RECOMMENDATIONS'];
+
   return (
-    <div style={pageStyle}>
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Georgia', serif", backgroundColor: '#f4f1fb' }}>
 
       {/* SIDEBAR */}
-      <div style={sidebarStyle}>
-        <h2 style={{ color: 'white', marginBottom: '30px' }}>LitLog</h2>
-        {['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'BOOK DETAILS', 'RECOMMENDATIONS'].map(item => (
+      <div style={{
+        width: '210px', backgroundColor: '#5b21b6', padding: '28px 18px',
+        display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0,
+        boxShadow: '4px 0 20px rgba(91,33,182,0.18)',
+      }}>
+        <div style={{ marginBottom: '32px' }}>
+          <h2 style={{ color: 'white', fontSize: '26px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 }}>LitLog</h2>
+          <p style={{ color: '#c4b5fd', fontSize: '11px', margin: '4px 0 0 0' }}>Hello, {username} 👋</p>
+        </div>
+        {sidebarItems.map(item => (
           <button
             key={item}
             onClick={() => {
               if (item === 'DASHBOARD') navigate('/dashboard');
               if (item === 'LIBRARY') navigate('/library');
+              if (item === 'BOOKSHELVES') navigate('/bookshelves');
+              if (item === 'PROGRESS') navigate('/progress');
             }}
-            style={sidebarButtonStyle}>
+            style={{
+              backgroundColor: item === 'LIBRARY' ? 'rgba(255,255,255,0.18)' : 'transparent',
+              border: 'none', color: 'white', textAlign: 'left',
+              padding: '10px 14px', cursor: 'pointer', fontWeight: '600',
+              fontSize: '12px', letterSpacing: '0.08em', borderRadius: '8px',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = item === 'LIBRARY' ? 'rgba(255,255,255,0.18)' : 'transparent'}
+          >
             {item}
           </button>
         ))}
       </div>
 
-      {/* MAIN CONTENT */}
-      <div style={mainStyle}>
+      {/* MAIN */}
+      <div style={{ flex: 1, padding: '28px', overflowY: 'auto' }}>
 
-        <div style={{ marginBottom: '20px' }}>
-          {/* TOP BAR */}
-          <div style={topBarStyle}>
-            <h1 style={{ fontSize: '28px', margin: 0 }}>LIBRARY</h1>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              {/* Search bar with filter button attached */}
-              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #ccc', borderRadius: '20px', overflow: 'hidden', backgroundColor: 'white' }}>
-                <input
-                  type="text"
-                  placeholder="Search by title or author..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  style={{ padding: '8px 14px', border: 'none', outline: 'none', fontSize: '14px', width: '220px' }}
-                />
-                <button
-                  onClick={() => setShowFilters(f => !f)}
-                  style={{
-                    padding: '8px 14px', border: 'none', borderLeft: '1px solid #ccc',
-                    backgroundColor: showFilters ? '#6200ea' : '#f5f5f5',
-                    color: showFilters ? 'white' : '#333',
-                    cursor: 'pointer', fontSize: '13px', fontWeight: 'bold',
-                    display: 'flex', alignItems: 'center', gap: '5px',
-                  }}>
-                  🔽 Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-                </button>
-              </div>
+        {selectedBook && (
+          <BookSummaryModal
+            book={selectedBook}
+            onClose={() => setSelectedBook(null)}
+            onAdd={async (book) => { await handleAddExternalBook(book); }}
+          />
+        )}
+
+        {/* TOP BAR */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#3b0764', margin: 0, letterSpacing: '0.05em' }}>
+            LIBRARY
+          </h2>
+          <ProfileMenu username={username} onLogout={handleLogout} />
+        </div>
+
+        {/* SEARCH + FILTER BAR */}
+        <div style={{
+          backgroundColor: 'white', borderRadius: '16px',
+          padding: '16px 20px', marginBottom: '20px',
+          boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
+          border: '1px solid #ede9fe',
+        }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: '180px', backgroundColor: '#faf5ff', borderRadius: '10px', border: '1.5px solid #ddd6fe', overflow: 'hidden' }}>
+              <span style={{ padding: '0 10px', color: '#a78bfa', fontSize: '14px' }}>🔍</span>
+              <input
+                type="text"
+                placeholder="Search your library..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ flex: 1, padding: '9px 10px 9px 0', border: 'none', outline: 'none', fontSize: '13px', backgroundColor: 'transparent', color: '#3b0764', fontFamily: "'Georgia', serif" }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: '180px', backgroundColor: '#faf5ff', borderRadius: '10px', border: '1.5px solid #ddd6fe', overflow: 'hidden' }}>
+              <span style={{ padding: '0 10px', color: '#a78bfa', fontSize: '14px' }}>🌐</span>
               <input
                 type="text"
                 placeholder="Search books online..."
                 value={externalQuery}
                 onChange={handleExternalSearch}
-                style={searchStyle}
+                style={{ flex: 1, padding: '9px 10px 9px 0', border: 'none', outline: 'none', fontSize: '13px', backgroundColor: 'transparent', color: '#3b0764', fontFamily: "'Georgia', serif" }}
               />
-              <button onClick={() => navigate('/bookdetails/new')} style={addButtonStyle}>
-                + Add Book
-              </button>
             </div>
+            <button
+              onClick={() => setShowFilters(f => !f)}
+              style={{
+                padding: '9px 16px', borderRadius: '10px', border: '1.5px solid',
+                borderColor: showFilters ? '#7c3aed' : '#ddd6fe',
+                backgroundColor: showFilters ? '#7c3aed' : 'white',
+                color: showFilters ? 'white' : '#7c3aed',
+                fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s',
+              }}
+            >
+              ⚙ Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </button>
+            <button
+              onClick={() => navigate('/bookdetails/new')}
+              style={{
+                padding: '9px 18px', borderRadius: '10px',
+                background: 'linear-gradient(135deg, #5b21b6, #4f46e5)',
+                border: 'none', color: 'white',
+                fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+                letterSpacing: '0.04em', boxShadow: '0 2px 8px rgba(91,33,182,0.25)',
+                transition: 'opacity 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >
+              + Add Book
+            </button>
           </div>
 
-          {/* FILTER PANEL */}
           {showFilters && (
-            <div style={{
-              backgroundColor: '#f9f5ff', border: '1px solid #d1c4e9', borderRadius: '12px',
-              padding: '16px 20px', marginTop: '12px',
-              display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap',
-            }}>
-              {/* Genre filter */}
+            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f3f0ff', display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#6b7280', marginBottom: '5px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Genre</label>
-                <select
-                  value={filterGenre}
-                  onChange={e => setFilterGenre(e.target.value)}
-                  style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: 'white', cursor: 'pointer' }}>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: '#a78bfa', marginBottom: '6px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Genre</label>
+                <select value={filterGenre} onChange={e => setFilterGenre(e.target.value)} style={{ padding: '7px 12px', borderRadius: '8px', border: '1.5px solid #ddd6fe', fontSize: '12px', backgroundColor: 'white', cursor: 'pointer', color: '#3b0764', outline: 'none', fontFamily: "'Georgia', serif" }}>
                   <option value="">All Genres</option>
                   {genreOptions.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
-
-              {/* Shelf filter */}
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#6b7280', marginBottom: '5px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Shelf</label>
-                <select
-                  value={filterShelf}
-                  onChange={e => setFilterShelf(e.target.value)}
-                  style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: 'white', cursor: 'pointer' }}>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: '#a78bfa', marginBottom: '6px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Shelf</label>
+                <select value={filterShelf} onChange={e => setFilterShelf(e.target.value)} style={{ padding: '7px 12px', borderRadius: '8px', border: '1.5px solid #ddd6fe', fontSize: '12px', backgroundColor: 'white', cursor: 'pointer', color: '#3b0764', outline: 'none', fontFamily: "'Georgia', serif" }}>
                   <option value="">All Shelves</option>
                   {['Want to Read', 'Currently Reading', 'Finished', 'Did Not Finish'].map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
-
-              {/* Min rating filter */}
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#6b7280', marginBottom: '5px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Min Rating</label>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: '#a78bfa', marginBottom: '6px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Min Rating</label>
                 <div style={{ display: 'flex', gap: '5px' }}>
                   {['', 1, 2, 3, 4, 5].map(r => (
-                    <button
-                      key={r}
-                      onClick={() => setFilterRating(r)}
-                      style={{
-                        padding: '6px 10px', borderRadius: '7px', border: '1px solid',
-                        borderColor: filterRating === r ? '#6200ea' : '#ccc',
-                        backgroundColor: filterRating === r ? '#6200ea' : 'white',
-                        color: filterRating === r ? 'white' : '#555',
-                        cursor: 'pointer', fontSize: '13px', fontWeight: '600',
-                      }}>
+                    <button key={r} onClick={() => setFilterRating(r)} style={{ padding: '6px 10px', borderRadius: '7px', border: '1.5px solid', borderColor: filterRating === r ? '#7c3aed' : '#ddd6fe', backgroundColor: filterRating === r ? '#7c3aed' : 'white', color: filterRating === r ? 'white' : '#7c3aed', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
                       {r === '' ? 'Any' : `${r}★`}
                     </button>
                   ))}
                 </div>
               </div>
-
-              {/* Clear filters */}
               {activeFilterCount > 0 && (
-                <button
-                  onClick={() => { setFilterGenre(''); setFilterShelf(''); setFilterRating(''); }}
-                  style={{ padding: '7px 14px', backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: '#c00', fontWeight: '600' }}>
-                  ✕ Clear Filters
+                <button onClick={() => { setFilterGenre(''); setFilterShelf(''); setFilterRating(''); }} style={{ padding: '7px 14px', backgroundColor: 'white', border: '1.5px solid #fca5a5', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', color: '#dc2626', fontWeight: '700' }}>
+                  ✕ Clear
                 </button>
               )}
             </div>
           )}
         </div>
 
-        {/* LOCAL BOOK TABLE */}
-        <div style={tableContainerStyle}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Title</th>
-                <th style={thStyle}>Author</th>
-                <th style={thStyle}>Shelf</th>
-                <th style={thStyle}>Rating</th>
-                <th style={thStyle}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBooks.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={{ ...tdStyle, textAlign: 'center' }}>No books found.</td>
-                </tr>
-              ) : filteredBooks.map(book => (
-                <tr key={book.id}>
-                  <td style={tdStyle}>{book.title}</td>
-                  <td style={tdStyle}>{book.author}</td>
-                  <td style={tdStyle}>{book.status}</td>
-                  <td style={tdStyle}>{book.rating}</td>
-                  <td style={{ ...tdStyle, position: 'relative' }}>
-                    <button
-                      style={optionsButtonStyle}
-                      onClick={() => setOpenDropdown(openDropdown === book.id ? null : book.id)}>
-                      Options ▼
-                    </button>
-                    {openDropdown === book.id && (
-                      <div style={dropdownStyle}>
-                        {/* ✅ passes full book object as route state so BookDetails can pre-fill the form */}
-                        <div style={dropdownItemStyle} onClick={() => navigate(`/bookdetails/${book.id}`, { state: { book } })}>Edit Details</div>
-                        <div style={dropdownItemStyle} onClick={() => handleDelete(book.id)}>Delete</div>
-                        <div style={{ padding: '8px 15px', fontSize: '12px', color: '#888' }}>Move to shelf:</div>
-                        {['Currently Reading', 'Want to Read', 'Finished', 'Did Not Finish'].map(shelf => (
-                          <div key={shelf} style={dropdownItemStyle} onClick={() => handleMoveShelf(book.id, shelf)}>{shelf}</div>
-                        ))}
+        {/* BOOK TABLE — overflow: visible so dropdown isn't clipped */}
+        <div style={{
+          backgroundColor: 'white', borderRadius: '16px',
+          boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
+          border: '1px solid #ede9fe', overflow: 'visible', // ← FIXED
+          marginBottom: externalResults.length > 0 ? '24px' : 0,
+        }}>
+          {/* Header row gets its own borderRadius to restore the top-corner clip */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.4fr 0.8fr 1fr',
+            padding: '12px 20px', backgroundColor: '#faf5ff',
+            borderBottom: '1px solid #ede9fe',
+            borderRadius: '16px 16px 0 0', // ← FIXED
+          }}>
+            {['Title', 'Author', 'Shelf', 'Rating', 'Actions'].map(h => (
+              <div key={h} style={{ fontSize: '10px', fontWeight: '800', color: '#a78bfa', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</div>
+            ))}
+          </div>
+
+          {filteredBooks.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#bbb', fontSize: '13px' }}>
+              {books.length === 0 ? <><div style={{ fontSize: '40px', marginBottom: '10px' }}>📚</div>No books yet. Add some above!</> : 'No books match your filters.'}
+            </div>
+          ) : filteredBooks.map((book, i) => (
+            <div
+              key={book.id}
+              style={{
+                display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.4fr 0.8fr 1fr',
+                padding: '14px 20px', alignItems: 'center',
+                borderBottom: i < filteredBooks.length - 1 ? '1px solid #f3f0ff' : 'none',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#faf5ff'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <div style={{ paddingRight: '12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: '#3b0764', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{book.title}</div>
+              </div>
+              <div style={{ fontSize: '12px', color: '#666', paddingRight: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{book.author}</div>
+              <div>
+                <span style={{ fontSize: '10px', fontWeight: '700', padding: '3px 10px', borderRadius: '20px', backgroundColor: `${statusColor[book.status] || '#888'}18`, color: statusColor[book.status] || '#888', letterSpacing: '0.04em' }}>
+                  {book.status}
+                </span>
+              </div>
+              <div style={{ fontSize: '13px', color: book.rating ? '#f59e0b' : '#ccc', fontWeight: '700' }}>
+                {book.rating ? '★'.repeat(book.rating) : '—'}
+              </div>
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={() => setOpenDropdown(openDropdown === book.id ? null : book.id)}
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #ddd6fe', backgroundColor: 'white', color: '#7c3aed', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f0ff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'white'; }}
+                >
+                  Options ▾
+                </button>
+                {openDropdown === book.id && (
+                  <div style={{ position: 'absolute', top: '36px', right: 0, backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 8px 32px rgba(91,33,182,0.18)', border: '1px solid #ede9fe', zIndex: 500, minWidth: '180px', overflow: 'hidden', animation: 'dropIn 0.15s ease' }}>
+                    <div onClick={() => navigate(`/bookdetails/${book.id}`, { state: { book } })} style={{ padding: '10px 16px', fontSize: '13px', cursor: 'pointer', color: '#3b0764', fontWeight: '600', borderBottom: '1px solid #f3f0ff' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#faf5ff'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>✏️ Edit Details</div>
+                    <div onClick={() => handleDelete(book.id)} style={{ padding: '10px 16px', fontSize: '13px', cursor: 'pointer', color: '#dc2626', fontWeight: '600', borderBottom: '1px solid #f3f0ff' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fff5f5'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>🗑 Delete</div>
+                    <div style={{ padding: '8px 16px 4px', fontSize: '10px', fontWeight: '800', color: '#a78bfa', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Move to shelf</div>
+                    {['Currently Reading', 'Want to Read', 'Finished', 'Did Not Finish'].map(shelf => (
+                      <div key={shelf} onClick={() => handleMoveShelf(book.id, shelf)} style={{ padding: '8px 16px', fontSize: '12px', cursor: 'pointer', color: statusColor[shelf] || '#555', fontWeight: '600', opacity: book.status === shelf ? 0.4 : 1 }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#faf5ff'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                        {shelf}
                       </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* EXTERNAL SEARCH RESULTS */}
         {externalResults.length > 0 && (
-          <div style={{ marginTop: '20px' }}>
-            <h3>Search Results</h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px 22px', boxShadow: '0 2px 10px rgba(109,40,217,0.08)', border: '1px solid #ede9fe' }}>
+            <div style={{ fontSize: '11px', fontWeight: '800', color: '#7c3aed', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '16px' }}>
+              🌐 Online Search Results
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
               {externalResults.map(book => (
-                <div key={book.id} style={{ backgroundColor: '#eee', padding: '10px', borderRadius: '8px', width: '150px' }}>
-                  <div style={{ height: '200px', overflow: 'hidden', textAlign: 'center' }}>
-                    {book.cover && book.cover.startsWith('http') ? <img src={book.cover} alt={book.title} style={{ maxHeight: '100%', maxWidth: '100%' }} /> : book.cover}
+                <div key={book.id} style={{ backgroundColor: '#faf5ff', padding: '12px', borderRadius: '14px', width: '148px', border: '1px solid #ede9fe', display: 'flex', flexDirection: 'column', boxShadow: '0 2px 8px rgba(109,40,217,0.06)', transition: 'box-shadow 0.2s, transform 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(109,40,217,0.16)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 8px rgba(109,40,217,0.06)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  <div style={{ height: '180px', overflow: 'hidden', borderRadius: '8px', backgroundColor: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+                    {book.cover && book.cover.startsWith('http')
+                      ? <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: '40px' }}>📖</span>
+                    }
                   </div>
-                  <h4 style={{ fontSize: '14px', margin: '10px 0 5px 0' }}>{book.title}</h4>
-                  <p style={{ fontSize: '12px', margin: 0 }}>{book.author}</p>
-                  <button
-                    style={{ marginTop: '5px', padding: '5px', fontSize: '12px', width: '100%' }}
-                    onClick={() => handleAddExternalBook(book)}
-                  >
-                    Add to Library
-                  </button>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#3b0764', lineHeight: 1.3, marginBottom: '3px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{book.title}</div>
+                  <div style={{ fontSize: '11px', color: '#7c3aed', fontWeight: '600', marginBottom: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{book.author}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: 'auto' }}>
+                    <button onClick={() => handleViewSummary(book)} style={{ padding: '6px', fontSize: '11px', width: '100%', backgroundColor: 'white', border: '1.5px solid #ddd6fe', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', color: '#7c3aed' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#ede9fe'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'white'; }}>
+                      👁 View Summary
+                    </button>
+                    <button onClick={() => handleAddExternalBook(book)} style={{ padding: '6px', fontSize: '11px', width: '100%', background: 'linear-gradient(135deg, #5b21b6, #4f46e5)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', color: 'white' }} onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }} onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}>
+                      + Add to Library
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

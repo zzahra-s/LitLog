@@ -1,0 +1,193 @@
+{
+  "info": {
+    "_postman_id": "fee625db-d87c-4fb4-9dcd-9a48850b021c",
+    "name": "Iteration2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "53305575"
+  },
+  "item": [
+    {
+      "name": "update-shelf",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "PATCH",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"Currently Reading\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5001/books/1/shelf",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5001",
+          "path": [
+            "books",
+            "1",
+            "shelf"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "update-rating-notes",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rating\": 4,\n  \"notes\": \"Really enjoyed the second half. Great character development.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5001/books/1/rating",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5001",
+          "path": [
+            "books",
+            "1",
+            "rating"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "progress-tracking",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bookID\": 6,\n  \"pagesRead\": 120\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5001/progress",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5001",
+          "path": [
+            "progress"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get-progress",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5001/progress/6",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5001",
+          "path": [
+            "progress",
+            "6"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "reading-goals",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userID\": 1,\n  \"goalType\": \"yearly\",\n  \"targetBooks\": 24,\n  \"year\": 2026,\n  \"month\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5001/goals",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5001",
+          "path": [
+            "goals"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "update-target",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetBooks\": 30\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5001/goals/1",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5001",
+          "path": [
+            "goals",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
