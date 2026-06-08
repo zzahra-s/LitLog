@@ -15,6 +15,7 @@ function generateToken(user) {
 exports.register = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+        // Return the first validation error as a plain message so frontend can show it
         return res.status(400).json({ message: errors.array()[0].msg });
     }
 
