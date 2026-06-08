@@ -1,4 +1,4 @@
-const sql = require('../models/db');
+const sql = require('../Models/db');
 
 // POST /goals  — set a reading goal
 exports.setGoal = async (req, res) => {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const bookController = require('../controllers/bookController');
+const bookController = require('../Controllers/bookController');
 
 router.get('/search', bookController.searchBooks);
 router.get('/filter', bookController.filterBooks);

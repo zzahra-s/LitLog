@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getBooks } from '../services/api';
-
-const BASE_URL = 'http://localhost:5001';
 
 async function fetchCover(title, author) {
   try {
@@ -14,7 +11,6 @@ async function fetchCover(title, author) {
   } catch { return null; }
 }
 
-// ── Profile Dropdown (same as Dashboard) ─────────────────────────────────────
 function ProfileMenu({ username, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -85,7 +81,6 @@ function ProfileMenu({ username, onLogout }) {
   );
 }
 
-// ── Book Card ─────────────────────────────────────────────────────────────────
 function BookCard({ book, cover, onGoTo }) {
   const [hovered, setHovered] = useState(false);
 
@@ -110,7 +105,6 @@ function BookCard({ book, cover, onGoTo }) {
         position: 'relative', overflow: 'hidden',
       }}
     >
-      {/* Cover thumbnail */}
       <div style={{
         width: '44px', height: '60px', borderRadius: '6px', overflow: 'hidden',
         flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
@@ -123,7 +117,6 @@ function BookCard({ book, cover, onGoTo }) {
         }
       </div>
 
-      {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: '13px', fontWeight: '700',
@@ -154,7 +147,6 @@ function BookCard({ book, cover, onGoTo }) {
         )}
       </div>
 
-      {/* Go To button */}
       <button
         onClick={() => onGoTo(book)}
         style={{
@@ -174,13 +166,9 @@ function BookCard({ book, cover, onGoTo }) {
   );
 }
 
-// ── Section Header ────────────────────────────────────────────────────────────
 function SectionHeader({ icon, label, count, color }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '10px',
-      marginBottom: '12px',
-    }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
       <span style={{ fontSize: '16px' }}>{icon}</span>
       <span style={{
         fontSize: '13px', fontWeight: '800', color,
@@ -197,7 +185,6 @@ function SectionHeader({ icon, label, count, color }) {
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
 function BookShelves() {
   const navigate = useNavigate();
   const [books, setBooks] = useState([]);
@@ -221,6 +208,7 @@ function BookShelves() {
 
   function handleLogout() {
     if (!window.confirm('Are you sure you want to log out?')) return;
+    localStorage.removeItem('token');   // FIX: also clear token on logout
     localStorage.removeItem('userID');
     localStorage.removeItem('username');
     navigate('/');
@@ -231,8 +219,8 @@ function BookShelves() {
   }
 
   const currentlyReading = books.filter(b => b.status === 'Currently Reading');
-  const wantToRead = books.filter(b => b.status === 'Want to Read');
-  const finished = books.filter(b => b.status === 'Finished');
+  const wantToRead       = books.filter(b => b.status === 'Want to Read');
+  const finished         = books.filter(b => b.status === 'Finished');
 
   const sidebarItems = ['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'PROGRESS', 'RECOMMENDATIONS'];
 
@@ -252,12 +240,13 @@ function BookShelves() {
         {sidebarItems.map(item => (
           <button
             key={item}
-onClick={() => {
-  if (item === 'DASHBOARD') navigate('/dashboard');
-  if (item === 'LIBRARY') navigate('/library');
-  if (item === 'BOOKSHELVES') navigate('/bookshelves');
-  if (item === 'PROGRESS') navigate('/progress');
-}}
+            onClick={() => {
+              if (item === 'DASHBOARD')       navigate('/dashboard');
+              if (item === 'LIBRARY')         navigate('/library');
+              if (item === 'BOOKSHELVES')     navigate('/bookshelves');
+              if (item === 'PROGRESS')        navigate('/progress');
+              if (item === 'RECOMMENDATIONS') navigate('/recommendations');  // FIX: was missing
+            }}
             style={{
               backgroundColor: item === 'BOOKSHELVES' ? 'rgba(255,255,255,0.18)' : 'transparent',
               border: 'none', color: 'white', textAlign: 'left',
@@ -296,7 +285,7 @@ onClick={() => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
 
-            {/* ── Currently Reading ── */}
+            {/* Currently Reading */}
             <div style={{
               backgroundColor: 'white', borderRadius: '16px',
               padding: '20px 22px',
@@ -315,7 +304,7 @@ onClick={() => {
               )}
             </div>
 
-            {/* ── Want to Read ── */}
+            {/* Want to Read */}
             <div style={{
               backgroundColor: 'white', borderRadius: '16px',
               padding: '20px 22px',
@@ -334,7 +323,7 @@ onClick={() => {
               )}
             </div>
 
-            {/* ── Finished ── */}
+            {/* Finished */}
             <div style={{
               backgroundColor: 'white', borderRadius: '16px',
               padding: '20px 22px',
@@ -342,7 +331,6 @@ onClick={() => {
               border: '1px solid #ede9fe',
             }}>
               <SectionHeader icon="✅" label="Finished" count={finished.length} color="#059669" />
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {finished.length === 0 ? (
                   <p style={{ color: '#bbb', fontSize: '13px', margin: 0 }}>No finished books yet. Keep reading! 💪</p>

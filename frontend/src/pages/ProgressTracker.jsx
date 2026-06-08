@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBooks, logProgress, getProgress, getGoals, setGoal, updateGoal } from '../services/api';
 
-const BASE_URL = 'http://localhost:5001';
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${localStorage.getItem('token')}`
+});
 
-// ── Profile Dropdown ──────────────────────────────────────────────────────────
 function ProfileMenu({ username, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -71,7 +73,6 @@ function ProfileMenu({ username, onLogout }) {
   );
 }
 
-// ── Progress Ring ─────────────────────────────────────────────────────────────
 function ProgressRing({ pct, size = 80, stroke = 8, color = '#7c3aed' }) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
@@ -90,7 +91,6 @@ function ProgressRing({ pct, size = 80, stroke = 8, color = '#7c3aed' }) {
   );
 }
 
-// ── Book Progress Card ────────────────────────────────────────────────────────
 function BookProgressCard({ book, pagesRead, onLogPages }) {
   const [inputVal, setInputVal] = useState('');
   const [saving, setSaving] = useState(false);
@@ -130,7 +130,6 @@ function BookProgressCard({ book, pagesRead, onLogPages }) {
       transition: 'box-shadow 0.3s',
       display: 'flex', gap: '16px', alignItems: 'center',
     }}>
-      {/* Ring */}
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <ProgressRing pct={pct} color={pct === 100 ? '#059669' : '#7c3aed'} />
         <div style={{
@@ -142,7 +141,6 @@ function BookProgressCard({ book, pagesRead, onLogPages }) {
         </div>
       </div>
 
-      {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '14px', fontWeight: '700', color: '#3b0764', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {book.title}
@@ -165,7 +163,6 @@ function BookProgressCard({ book, pagesRead, onLogPages }) {
           )}
         </div>
 
-        {/* Progress bar */}
         {total > 0 && (
           <div style={{ marginTop: '8px', height: '4px', backgroundColor: '#ede9fe', borderRadius: '10px', overflow: 'hidden' }}>
             <div style={{
@@ -179,7 +176,6 @@ function BookProgressCard({ book, pagesRead, onLogPages }) {
         )}
       </div>
 
-      {/* Log input */}
       {book.status !== 'Finished' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, alignItems: 'flex-end' }}>
           <div style={{ fontSize: '10px', fontWeight: '700', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -228,7 +224,6 @@ function BookProgressCard({ book, pagesRead, onLogPages }) {
   );
 }
 
-// ── Goal Panel ────────────────────────────────────────────────────────────────
 function GoalPanel({ userID, finishedCount }) {
   const currentYear = new Date().getFullYear();
   const [goal, setGoalState] = useState(null);
@@ -238,10 +233,13 @@ function GoalPanel({ userID, finishedCount }) {
 
   useEffect(() => {
     getGoals(userID).then(goals => {
-      const yearly = goals.find(g => g.GoalType === 'Yearly' && g.Year === currentYear);
+      // FIX: DB stores 'yearly' lowercase — was incorrectly matching 'Yearly'
+      const yearly = goals.find(g =>
+        g.GoalType?.toLowerCase() === 'yearly' && g.Year === currentYear
+      );
       setGoalState(yearly || null);
     });
-  }, [userID]);
+  }, [userID, currentYear]);
 
   const pct = goal ? Math.min(100, Math.round((finishedCount / goal.TargetBooks) * 100)) : 0;
 
@@ -254,9 +252,12 @@ function GoalPanel({ userID, finishedCount }) {
         await updateGoal(goal.GoalID, target);
         setGoalState({ ...goal, TargetBooks: target });
       } else {
-        await setGoal(userID, 'Yearly', target, currentYear);
+        // FIX: send 'yearly' (lowercase) to match DB CHECK constraint
+        await setGoal(userID, 'yearly', target, currentYear);
         const goals = await getGoals(userID);
-        const yearly = goals.find(g => g.GoalType === 'Yearly' && g.Year === currentYear);
+        const yearly = goals.find(g =>
+          g.GoalType?.toLowerCase() === 'yearly' && g.Year === currentYear
+        );
         setGoalState(yearly || null);
       }
       setTargetInput('');
@@ -366,7 +367,6 @@ function GoalPanel({ userID, finishedCount }) {
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
 function ProgressTracker() {
   const navigate = useNavigate();
   const [books, setBooks] = useState([]);
@@ -387,10 +387,11 @@ function ProgressTracker() {
       setProgressMap(Object.fromEntries(entries));
       setLoading(false);
     });
-  }, [navigate]);
+  }, [navigate, userID]);
 
   function handleLogout() {
     if (!window.confirm('Are you sure you want to log out?')) return;
+    localStorage.removeItem('token');
     localStorage.removeItem('userID');
     localStorage.removeItem('username');
     navigate('/');
@@ -401,12 +402,11 @@ function ProgressTracker() {
       await logProgress(bookID, pagesRead);
       setProgressMap(prev => ({ ...prev, [bookID]: pagesRead }));
 
-      // Auto-mark as Finished if pages match total
       const book = books.find(b => b.id === bookID);
       if (book && book.totalPages > 0 && pagesRead >= book.totalPages) {
         await fetch(`http://localhost:5001/books/${bookID}/shelf`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ status: 'Finished' }),
         });
         setBooks(prev => prev.map(b => b.id === bookID ? { ...b, status: 'Finished' } : b));
@@ -418,7 +418,6 @@ function ProgressTracker() {
 
   const finishedCount = books.filter(b => b.status === 'Finished').length;
 
-  const statuses = ['Currently Reading', 'Want to Read', 'Finished', 'Did Not Finish'];
   const filteredBooks = filterStatus === 'All'
     ? books
     : books.filter(b => b.status === filterStatus);
@@ -442,10 +441,11 @@ function ProgressTracker() {
           <button
             key={item}
             onClick={() => {
-              if (item === 'DASHBOARD') navigate('/dashboard');
-              if (item === 'LIBRARY') navigate('/library');
-              if (item === 'BOOKSHELVES') navigate('/bookshelves');
-              if (item === 'PROGRESS') navigate('/progress');
+              if (item === 'DASHBOARD')       navigate('/dashboard');
+              if (item === 'LIBRARY')         navigate('/library');
+              if (item === 'BOOKSHELVES')     navigate('/bookshelves');
+              if (item === 'PROGRESS')        navigate('/progress');
+              if (item === 'RECOMMENDATIONS') navigate('/recommendations');
             }}
             style={{
               backgroundColor: item === 'PROGRESS' ? 'rgba(255,255,255,0.18)' : 'transparent',
@@ -518,7 +518,6 @@ function ProgressTracker() {
                 ))}
               </div>
 
-              {/* Book cards */}
               {filteredBooks.length === 0 ? (
                 <div style={{ padding: '30px', textAlign: 'center', color: '#bbb', fontSize: '13px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #ede9fe' }}>
                   No books with status "{filterStatus}".
@@ -538,10 +537,8 @@ function ProgressTracker() {
             {/* RIGHT: goal + summary stats */}
             <div style={{ flexShrink: 0, width: '280px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* Goal panel */}
               <GoalPanel userID={userID} finishedCount={finishedCount} />
 
-              {/* Quick stats */}
               <div style={{
                 backgroundColor: 'white', borderRadius: '16px',
                 padding: '20px 22px',

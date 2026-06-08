@@ -1,36 +1,38 @@
 const express = require('express');
 require('dotenv').config();
-
 const cors = require('cors');
 
-const app = express();
+const app  = express();
 const PORT = 5001;
-// middleware
 app.use(express.json());
 app.use(cors());
-
-// db connection
-require('./app/models/db');
-
-const authRoutes = require('./app/routes/authRoutes');
-const bookRoutes = require('./app/routes/bookRoutes');
-
-//iteration2
-const progressRoutes = require('./app/routes/progressRoutes');
-const goalRoutes     = require('./app/routes/goalRoutes');
-
-
-// test route
-app.get('/', (req, res) => {
-    res.send('Backend is working');
+require('./app/Models/db');
+const rateLimit = require('express-rate-limit');
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,                  // max 100 requests per window
+  message: 'Too many requests, please try again later.'
 });
+// Routes
+const authRoutes=require('./app/Routes/authRoutes');
+const verifyToken = require('./app/Middleware/authMiddleware');
+const bookRoutes= require('./app/Routes/bookRoutes');
+const progressRoutes= require('./app/Routes/progressRoutes');
+const goalRoutes= require('./app/Routes/goalRoutes');
+const analyticsRoutes= require('./app/Routes/analyticsRoutes');     // iteration 3
+const recommendRoutes= require('./app/Routes/recommendRoutes');     // iteration 3
+app.use(limiter);
+app.use('/auth',authRoutes);
+app.use(verifyToken);  
+app.use('/books',bookRoutes);
+app.use('/progress',progressRoutes);
+app.use('/goals',goalRoutes);
+app.use('/analytics',analyticsRoutes);       // iteration 3
+app.use('/recommendations',recommendRoutes);       // iteration 3
 
-app.use('/auth', authRoutes);
-app.use('/books', bookRoutes);
-//iteration2
-app.use('/progress', progressRoutes);
-app.use('/goals',    goalRoutes);
+app.get('/', (req, res) => res.send('Backend is working'));
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+

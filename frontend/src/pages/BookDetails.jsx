@@ -1,108 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { updateBook, addBook } from '../services/api';
-
-
-function ProfileMenu({ username, onLogout }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const initials = username ? username.slice(0, 2).toUpperCase() : '?';
-
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        title={username}
-        style={{
-          width: '38px', height: '38px', borderRadius: '50%',
-          background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-          border: '2px solid rgba(255,255,255,0.4)',
-          color: 'white', fontWeight: '800', fontSize: '13px',
-          cursor: 'pointer', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', letterSpacing: '0.04em',
-          boxShadow: '0 2px 8px rgba(109,40,217,0.35)',
-          transition: 'box-shadow 0.2s, transform 0.15s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-      >
-        {initials}
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '46px', right: 0,
-          backgroundColor: 'white', borderRadius: '12px',
-          boxShadow: '0 8px 32px rgba(91,33,182,0.18)',
-          minWidth: '180px', overflow: 'hidden', zIndex: 1000,
-          animation: 'dropIn 0.15s ease',
-        }}>
-          <style>{`@keyframes dropIn { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }`}</style>
-          <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid #f3f0ff' }}>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: '#3b0764' }}>{username}</div>
-            <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '2px' }}>Logged in</div>
-          </div>
-          <button
-            onClick={onLogout}
-            style={{
-              width: '100%', textAlign: 'left', padding: '11px 16px',
-              border: 'none', backgroundColor: 'transparent', cursor: 'pointer',
-              fontSize: '13px', fontWeight: '600', color: '#dc2626',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fff5f5'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            <span>🚪</span> Log Out
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
+import { updateBook, addBook, getBooks} from '../services/api';
 
 function BookDetails() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
-
   const isNew = id === 'new';
   const bookFromState = location.state?.book;
+
   const username = localStorage.getItem('username') || 'Reader';
+  const sidebarItems = ['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'PROGRESS', 'RECOMMENDATIONS'];
 
   const [form, setForm] = useState({
-    title:         bookFromState?.title         || '',
-    author:        bookFromState?.author        || '',
-    genre:         bookFromState?.genre         || '',
-    totalPages:    bookFromState?.totalPages    || '',
-    yearPublished: bookFromState?.yearPublished || '',
-    status:        bookFromState?.status        || 'Want to Read',
-    rating:        bookFromState?.rating        || '',
-    notes:         bookFromState?.notes         || '',
+    title:bookFromState?.title ||'',
+    author:bookFromState?.author|| '',
+    genre:bookFromState?.genre || '',
+    totalPages:bookFromState?.totalPages|| '',
+    yearPublished: bookFromState?.yearPublished|| '',
+    status:bookFromState?.status|| 'Want to Read',
+    rating:bookFromState?.rating|| '',
+    notes:bookFromState?.notes|| '',
   });
 
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError]   = useState('');
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
-  }
-
-  function handleLogout() {
-    if (!window.confirm('Are you sure you want to log out?')) return;
-    localStorage.removeItem('userID');
-    localStorage.removeItem('username');
-    navigate('/');
   }
 
   async function handleSave() {
@@ -114,6 +39,20 @@ function BookDetails() {
     setError('');
     const userID = Number(localStorage.getItem('userID'));
     try {
+      if (isNew) {
+        const existingBooks = await getBooks(userID);
+        const duplicate = existingBooks.find(
+          b =>
+            b.title.trim().toLowerCase()  === form.title.trim().toLowerCase() &&
+            b.author.trim().toLowerCase() === form.author.trim().toLowerCase()
+        );
+        if (duplicate) {
+          setError(`"${form.title}" by ${form.author} is already in your library.`);
+          setSaving(false);
+          return;
+        }
+      }
+
       const bookData = {
         title:         form.title,
         author:        form.author,
@@ -124,6 +63,7 @@ function BookDetails() {
         rating:        form.rating ? Number(form.rating) : null,
         notes:         form.notes || null,
       };
+
       if (isNew) {
         await addBook({ ...bookData, userID });
       } else {
@@ -137,29 +77,45 @@ function BookDetails() {
     }
   }
 
-  const sidebarItems = ['DASHBOARD', 'LIBRARY', 'BOOKSHELVES', 'PROGRESS', 'RECOMMENDATIONS'];
-
+  const pageStyle = {
+    display: 'flex', minHeight: '100vh', fontFamily: "'Georgia', serif", backgroundColor: '#f4f1fb',
+  };
+  const mainStyle = {
+    flex: 1, padding: '40px', overflowY: 'auto',
+  };
+  const cardStyle = {
+    backgroundColor: 'white', borderRadius: '12px',
+    padding: '30px', maxWidth: '560px', boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
+    border: '1px solid #ede9fe',
+  };
   const labelStyle = {
-    display: 'block', fontSize: '10px', fontWeight: '800',
-    color: '#a78bfa', marginBottom: '6px',
-    textTransform: 'uppercase', letterSpacing: '0.08em',
+    display: 'block', fontSize: '12px', fontWeight: 'bold',
+    color: '#555', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.05em',
   };
-
   const inputStyle = {
-    width: '100%', padding: '9px 12px', borderRadius: '8px',
-    border: '1.5px solid #ddd6fe', fontSize: '13px', boxSizing: 'border-box',
-    marginBottom: '16px', backgroundColor: '#faf5ff', color: '#3b0764',
-    fontFamily: "'Georgia', serif", outline: 'none',
-    transition: 'border-color 0.2s',
+    width: '100%', padding: '10px 12px', borderRadius: '8px',
+    border: '1px solid #ccc', fontSize: '14px', boxSizing: 'border-box',
+    marginBottom: '18px', backgroundColor: '#fafafa',
   };
-
-  const selectStyle = { ...inputStyle, cursor: 'pointer' };
+  const selectStyle = { ...inputStyle };
   const textareaStyle = { ...inputStyle, height: '90px', resize: 'vertical' };
+  const rowStyle = { display: 'flex', gap: '16px' };
+  const halfStyle = { flex: 1 };
+  const saveButtonStyle = {
+    padding: '11px 28px', backgroundColor: '#6d28d9', color: 'white',
+    border: 'none', borderRadius: '8px', cursor: 'pointer',
+    fontWeight: 'bold', fontSize: '14px',
+  };
+  const cancelButtonStyle = {
+    padding: '11px 28px', backgroundColor: 'white', color: '#7c3aed',
+    border: '1px solid #7c3aed', borderRadius: '8px', cursor: 'pointer',
+    fontWeight: 'bold', fontSize: '14px', marginRight: '10px',
+  };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Georgia', serif", backgroundColor: '#f4f1fb' }}>
+    <div style={pageStyle}>
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR — matches BookShelves exactly */}
       <div style={{
         width: '210px', backgroundColor: '#5b21b6', padding: '28px 18px',
         display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0,
@@ -169,123 +125,79 @@ function BookDetails() {
           <h2 style={{ color: 'white', fontSize: '26px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 }}>LitLog</h2>
           <p style={{ color: '#c4b5fd', fontSize: '11px', margin: '4px 0 0 0' }}>Hello, {username} 👋</p>
         </div>
-        {sidebarItems.map(item => (
-          <button
-            key={item}
-            onClick={() => {
-              if (item === 'DASHBOARD') navigate('/dashboard');
-              if (item === 'LIBRARY') navigate('/library');
-              if (item === 'BOOKSHELVES') navigate('/bookshelves');
-              if (item === 'PROGRESS') navigate('/progress');
-            }}
-            style={{
-              backgroundColor: 'transparent',
-              border: 'none', color: 'white', textAlign: 'left',
-              padding: '10px 14px', cursor: 'pointer', fontWeight: '600',
-              fontSize: '12px', letterSpacing: '0.08em', borderRadius: '8px',
-              transition: 'background 0.2s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            {item}
-          </button>
-        ))}
+        {sidebarItems.map(item => {
+          const isActive = item === 'BOOK DETAILS';
+          return (
+            <button
+              key={item}
+              onClick={() => {
+                if (item === 'DASHBOARD')       navigate('/dashboard');
+                if (item === 'LIBRARY')         navigate('/library');
+                if (item === 'BOOKSHELVES')     navigate('/bookshelves');
+                if (item === 'PROGRESS')        navigate('/progress');
+                if (item === 'RECOMMENDATIONS') navigate('/recommendations');
+              }}
+              style={{
+                backgroundColor: isActive ? 'rgba(255,255,255,0.18)' : 'transparent',
+                border: 'none', color: 'white', textAlign: 'left',
+                padding: '10px 14px', cursor: 'pointer', fontWeight: '600',
+                fontSize: '12px', letterSpacing: '0.08em', borderRadius: '8px',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = isActive ? 'rgba(255,255,255,0.18)' : 'transparent'}
+            >
+              {item}
+            </button>
+          );
+        })}
       </div>
 
       {/* MAIN */}
-      <div style={{ flex: 1, padding: '28px', overflowY: 'auto' }}>
+      <div style={mainStyle}>
+        <h2 style={{ marginBottom: '24px', fontSize: '20px', fontWeight: '800', color: '#3b0764', letterSpacing: '0.05em' }}>
+          {isNew ? 'ADD BOOK' : 'EDIT BOOK'}
+        </h2>
 
-        {/* TOP BAR */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#3b0764', margin: 0, letterSpacing: '0.05em' }}>
-            {isNew ? 'ADD BOOK' : 'EDIT BOOK'}
-          </h2>
-          <ProfileMenu username={username} onLogout={handleLogout} />
-        </div>
-
-        {/* FORM CARD */}
-        <div style={{
-          backgroundColor: 'white', borderRadius: '16px',
-          padding: '28px 30px', maxWidth: '600px',
-          boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
-          border: '1px solid #ede9fe',
-        }}>
-
-          {/* Card header accent */}
-          <div style={{
-            background: 'linear-gradient(135deg, #5b21b6 0%, #4f46e5 100%)',
-            borderRadius: '10px', padding: '14px 18px',
-            marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px',
-          }}>
-            <span style={{ fontSize: '20px' }}>📖</span>
-            <div>
-              <div style={{ color: 'white', fontWeight: '800', fontSize: '14px' }}>
-                {isNew ? 'New Book' : form.title || 'Edit Book'}
-              </div>
-              <div style={{ color: '#c4b5fd', fontSize: '11px', marginTop: '2px' }}>
-                {isNew ? 'Fill in the details below' : 'Update the details below'}
-              </div>
-            </div>
-          </div>
-
-          {/* Title */}
+        <div style={cardStyle}>
           <label style={labelStyle}>Title *</label>
           <input
             style={inputStyle} name="title"
             value={form.title} onChange={handleChange}
             placeholder="Book title"
-            onFocus={e => e.currentTarget.style.borderColor = '#7c3aed'}
-            onBlur={e => e.currentTarget.style.borderColor = '#ddd6fe'}
           />
-
-          {/* Author */}
           <label style={labelStyle}>Author</label>
           <input
             style={inputStyle} name="author"
             value={form.author} onChange={handleChange}
             placeholder="Author name"
-            onFocus={e => e.currentTarget.style.borderColor = '#7c3aed'}
-            onBlur={e => e.currentTarget.style.borderColor = '#ddd6fe'}
           />
-
-          {/* Genre */}
           <label style={labelStyle}>Genre</label>
           <input
             style={inputStyle} name="genre"
             value={form.genre} onChange={handleChange}
             placeholder="e.g. Fiction, Mystery..."
-            onFocus={e => e.currentTarget.style.borderColor = '#7c3aed'}
-            onBlur={e => e.currentTarget.style.borderColor = '#ddd6fe'}
           />
-
-          {/* Total Pages + Year Published */}
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ flex: 1 }}>
+          <div style={rowStyle}>
+            <div style={halfStyle}>
               <label style={labelStyle}>Total Pages</label>
               <input
                 style={inputStyle} name="totalPages" type="number" min="0"
                 value={form.totalPages} onChange={handleChange}
                 placeholder="e.g. 320"
-                onFocus={e => e.currentTarget.style.borderColor = '#7c3aed'}
-                onBlur={e => e.currentTarget.style.borderColor = '#ddd6fe'}
               />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={halfStyle}>
               <label style={labelStyle}>Year Published</label>
               <input
                 style={inputStyle} name="yearPublished" type="number" min="0"
                 value={form.yearPublished} onChange={handleChange}
                 placeholder="e.g. 2001"
-                onFocus={e => e.currentTarget.style.borderColor = '#7c3aed'}
-                onBlur={e => e.currentTarget.style.borderColor = '#ddd6fe'}
               />
             </div>
           </div>
-
-          {/* Status + Rating */}
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ flex: 1 }}>
+          <div style={rowStyle}>
+            <div style={halfStyle}>
               <label style={labelStyle}>Shelf / Status</label>
               <select style={selectStyle} name="status" value={form.status} onChange={handleChange}>
                 <option>Want to Read</option>
@@ -294,7 +206,7 @@ function BookDetails() {
                 <option>Did Not Finish</option>
               </select>
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={halfStyle}>
               <label style={labelStyle}>Rating (1–5)</label>
               <select style={selectStyle} name="rating" value={form.rating} onChange={handleChange}>
                 <option value="">No rating</option>
@@ -304,62 +216,23 @@ function BookDetails() {
               </select>
             </div>
           </div>
-
-          {/* Notes */}
           <label style={labelStyle}>Notes</label>
           <textarea
             style={textareaStyle} name="notes"
             value={form.notes} onChange={handleChange}
             placeholder="Any personal notes about this book..."
-            onFocus={e => e.currentTarget.style.borderColor = '#7c3aed'}
-            onBlur={e => e.currentTarget.style.borderColor = '#ddd6fe'}
           />
-
-          {/* Error */}
           {error && (
-            <div style={{
-              backgroundColor: '#fff5f5', border: '1px solid #fca5a5',
-              borderRadius: '8px', padding: '10px 14px',
-              color: '#dc2626', fontSize: '12px', fontWeight: '600',
-              marginBottom: '16px',
-            }}>
-              ⚠ {error}
-            </div>
+            <p style={{ color: 'red', fontSize: '13px', marginBottom: '14px' }}>{error}</p>
           )}
-
-          {/* Buttons */}
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
-            <button
-              onClick={() => navigate('/library')}
-              style={{
-                padding: '10px 22px', backgroundColor: 'white', color: '#7c3aed',
-                border: '1.5px solid #ddd6fe', borderRadius: '8px', cursor: 'pointer',
-                fontWeight: '700', fontSize: '13px', transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f0ff'; e.currentTarget.style.borderColor = '#7c3aed'; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.borderColor = '#ddd6fe'; }}
-            >
+          <div>
+            <button style={cancelButtonStyle} onClick={() => navigate('/library')}>
               Cancel
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: '10px 22px',
-                background: saving ? '#e5e7eb' : 'linear-gradient(135deg, #5b21b6, #4f46e5)',
-                color: saving ? '#9ca3af' : 'white',
-                border: 'none', borderRadius: '8px', cursor: saving ? 'default' : 'pointer',
-                fontWeight: '700', fontSize: '13px',
-                boxShadow: saving ? 'none' : '0 2px 8px rgba(91,33,182,0.25)',
-                transition: 'opacity 0.2s',
-              }}
-              onMouseEnter={e => { if (!saving) e.currentTarget.style.opacity = '0.88'; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
-            >
-              {saving ? 'Saving...' : isNew ? '+ Add Book' : 'Save Changes'}
+            <button style={saveButtonStyle} onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : isNew ? 'Add Book' : 'Save Changes'}
             </button>
           </div>
-
         </div>
       </div>
     </div>

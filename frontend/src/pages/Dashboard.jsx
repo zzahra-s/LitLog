@@ -82,7 +82,6 @@ function PieChart({ data }) {
   );
 }
 
-// ── Profile Dropdown ──────────────────────────────────────────────────────────
 function ProfileMenu({ username, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -153,18 +152,23 @@ function ProfileMenu({ username, onLogout }) {
   );
 }
 
-// ── Main Dashboard ────────────────────────────────────────────────────────────
 function Dashboard() {
   const navigate = useNavigate();
   const [books, setBooks] = useState([]);
   const [progressMap, setProgressMap] = useState({});
   const [coverMap, setCoverMap] = useState({});
   const [goals, setGoals] = useState([]);
+  const [quickRecs, setQuickRecs] = useState([]);
   const username = localStorage.getItem('username') || 'Reader';
 
   useEffect(() => {
     const userID = Number(localStorage.getItem('userID'));
     if (!userID || isNaN(userID)) { navigate('/'); return; }
+
+    fetch(`${BASE_URL}/recommendations/${userID}`)
+      .then(r => r.json())
+      .then(data => setQuickRecs((data.recommendations || []).slice(0, 3)))
+      .catch(() => {});
 
     getBooks(userID).then(async data => {
       setBooks(data);
@@ -185,12 +189,12 @@ function Dashboard() {
 
   function handleLogout() {
     if (!window.confirm('Are you sure you want to log out?')) return;
+    localStorage.removeItem('token');
     localStorage.removeItem('userID');
     localStorage.removeItem('username');
     navigate('/');
   }
 
-  // --- DERIVED STATS ---
   const finishedBooks = books.filter(b => b.status === 'Finished');
   const totalPages = books.reduce((sum, b) => sum + (b.totalPages || 0), 0);
 
@@ -211,7 +215,10 @@ function Dashboard() {
     .map(([genre, count]) => ({ genre, count }));
 
   const currentYear = new Date().getFullYear();
-  const yearlyGoal = goals.find(g => g.GoalType === 'Yearly' && g.Year === currentYear);
+  // FIX: DB stores 'yearly' (lowercase) — was incorrectly matching 'Yearly'
+  const yearlyGoal = goals.find(g =>
+    g.GoalType?.toLowerCase() === 'yearly' && g.Year === currentYear
+  );
   const goalTarget = yearlyGoal?.TargetBooks || 0;
   const goalProgress = goalTarget > 0 ? Math.min(100, Math.round((finishedBooks.length / goalTarget) * 100)) : 0;
 
@@ -242,12 +249,13 @@ function Dashboard() {
         {sidebarItems.map(item => (
           <button
             key={item}
-onClick={() => {
-  if (item === 'DASHBOARD') navigate('/dashboard');
-  if (item === 'LIBRARY') navigate('/library');
-  if (item === 'BOOKSHELVES') navigate('/bookshelves');
-  if (item === 'PROGRESS') navigate('/progress');
-}}
+            onClick={() => {
+              if (item === 'DASHBOARD')       navigate('/dashboard');
+              if (item === 'LIBRARY')         navigate('/library');
+              if (item === 'BOOKSHELVES')     navigate('/bookshelves');
+              if (item === 'PROGRESS')        navigate('/progress');
+              if (item === 'RECOMMENDATIONS') navigate('/recommendations');
+            }}
             style={{
               backgroundColor: item === 'DASHBOARD' ? 'rgba(255,255,255,0.18)' : 'transparent',
               border: 'none', color: 'white', textAlign: 'left',
@@ -413,6 +421,89 @@ onClick={() => {
                 </div>
 
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* RECOMMENDATIONS PREVIEW STRIP */}
+        {books.length > 0 && quickRecs.length > 0 && (
+          <div style={{
+            marginTop: '20px',
+            backgroundColor: 'white', borderRadius: '16px',
+            padding: '18px 22px',
+            boxShadow: '0 2px 10px rgba(109,40,217,0.08)',
+            border: '1px solid #ede9fe',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '16px' }}>✨</span>
+                <span style={{ fontSize: '13px', fontWeight: '800', color: '#3b0764', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  Recommended for You
+                </span>
+              </div>
+              <button
+                onClick={() => navigate('/recommendations')}
+                style={{
+                  padding: '6px 14px', fontSize: '11px', fontWeight: '700',
+                  background: 'linear-gradient(135deg, #5b21b6, #4f46e5)',
+                  color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer',
+                  letterSpacing: '0.04em',
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >
+                See All →
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+              {quickRecs.map(book => (
+                <div
+                  key={book.id}
+                  onClick={() => navigate('/recommendations')}
+                  style={{
+                    display: 'flex', gap: '12px', alignItems: 'center',
+                    padding: '10px 12px', borderRadius: '12px',
+                    border: '1px solid #ede9fe', cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                    backgroundColor: '#faf5ff',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = '#f3f0ff';
+                    e.currentTarget.style.borderColor = '#c4b5fd';
+                    e.currentTarget.style.boxShadow = '0 4px 14px rgba(109,40,217,0.12)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = '#faf5ff';
+                    e.currentTarget.style.borderColor = '#ede9fe';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{
+                    width: '40px', height: '56px', borderRadius: '6px', overflow: 'hidden',
+                    flexShrink: 0, backgroundColor: '#ede9fe',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                  }}>
+                    {book.cover
+                      ? <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: '20px' }}>📖</span>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#3b0764', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {book.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      by {book.author}
+                    </div>
+                    {book.reason && (
+                      <div style={{ fontSize: '10px', color: '#a78bfa', fontWeight: '600', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {book.reason}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

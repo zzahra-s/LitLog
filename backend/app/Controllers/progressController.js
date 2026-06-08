@@ -1,9 +1,9 @@
-const sql = require('../models/db');
+const sql = require('../Models/db');
 
 // POST /progress  — log pages read for a book
 exports.logProgress = async (req, res) => {
     const { bookID, pagesRead } = req.body;
-
+    if (pagesRead < 0) return res.status(400).json({ message: 'pagesRead cannot be negative' });
     if (!bookID || pagesRead === undefined)
         return res.status(400).json({ message: 'bookID and pagesRead are required' });
 
