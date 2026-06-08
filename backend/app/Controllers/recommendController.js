@@ -90,9 +90,6 @@ exports.getRecommendations = async (req, res) => {
             await fetchFromGoogle(`inauthor:"${author}"`, `More from ${author}`, 0.3);
         }
 
-        for (const b of books.slice(0, 3)) {
-            await fetchFromGoogle(`intitle:${b.Title}`, `Because you liked ${b.Title}`, 0.5);
-        }
 
         if (topGenres.length > 0) {
            
